@@ -81,7 +81,7 @@ function getJoggingDemo(second: number): { vitals: BandVitals; phase: BandPhase 
     return {
       phase: "jogging",
       vitals: {
-        heartRate: noisy(interpolate(82, 142, progress), 82, 142),
+        heartRate: noisy(interpolate(82, 100, progress), 82, 100),
         oxygen: noisy(96.5, 96, 97, 0, 0.5),
         temperature: noisy(interpolate(98.7, 99.8, progress), 98.4, 99.8, 1, 0.08),
         systolic: noisy(interpolate(116, 138, progress), 112, 138, 0, 1),
@@ -96,7 +96,7 @@ function getJoggingDemo(second: number): { vitals: BandVitals; phase: BandPhase 
   return {
     phase: "recovery",
     vitals: {
-      heartRate: noisy(interpolate(142, 79, progress), 76, 142),
+      heartRate: noisy(interpolate(100, 79, progress), 76, 100),
       oxygen: noisy(interpolate(96, 97.5, progress), 96, 98),
       temperature: noisy(interpolate(99.8, 98.55, progress), 98.4, 99.8, 1, 0.08),
       systolic: noisy(interpolate(138, 114, progress), 112, 138, 0, 1),
