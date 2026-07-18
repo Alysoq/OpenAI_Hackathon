@@ -273,7 +273,15 @@ export default function App() {
           {activeTab === "Hospitals" && (
             <HospitalsScreen theme={theme} riskLevel={activeScenario} />
           )}
-          {activeTab === "Profile" && <ProfileScreen theme={theme} />}
+          {activeTab === "Profile" && (
+            <ProfileScreen
+              theme={theme}
+              onResetOnboarding={() => {
+                setDataConsent(false);
+                setPatientOnboarding("consent");
+              }}
+            />
+          )}
         </View>
       </View>
 

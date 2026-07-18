@@ -11,6 +11,7 @@ Run:
 """
 
 from fastapi import FastAPI, HTTPException, Depends, File, Form, UploadFile
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
@@ -28,6 +29,8 @@ import os
 import shutil
 import subprocess
 import tempfile
+import csv
+import io
 
 app = FastAPI(title="MaternaAI v2 Server")
 security = HTTPBasic()
@@ -124,6 +127,13 @@ def init_db():
             PRIMARY KEY (patient_id, week_start)
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS retraining_state (
+            state_key TEXT PRIMARY KEY,
+            state_value TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+    """)
     conn.commit()
     conn.close()
 
@@ -183,6 +193,34 @@ def get_patient_conditions(patient_id: Optional[str]) -> Dict[str, bool]:
     ).fetchone()
     conn.close()
     return json.loads(row["conditions_json"]) if row else {}
+
+def get_retraining_state(key: str, default: str = "0") -> str:
+    conn = get_db()
+    row = conn.execute("SELECT state_value FROM retraining_state WHERE state_key = ?", (key,)).fetchone()
+    conn.close()
+    return row["state_value"] if row else default
+
+def set_retraining_state(key: str, value: str):
+    conn = get_db()
+    conn.execute("""
+        INSERT OR REPLACE INTO retraining_state (state_key, state_value, updated_at)
+        VALUES (?,?,?)
+    """, (key, value, datetime.utcnow().isoformat()))
+    conn.commit()
+    conn.close()
+
+def check_retraining_threshold():
+    last_retrained_id = int(get_retraining_state("last_retrained_reading_id"))
+    conn = get_db()
+    row = conn.execute("""
+        SELECT COUNT(*) AS new_readings, MAX(r.id) AS latest_id
+        FROM readings r
+        INNER JOIN patient_profiles p ON p.patient_id = r.patient_id
+        WHERE p.data_consent = 1 AND r.id > ?
+    """, (last_retrained_id,)).fetchone()
+    conn.close()
+    if row["new_readings"] > 50:
+        print("Enough new data collected - run retrain_model.py to improve the model")
 
 # ── Random Forest risk scoring ────────────────────────────────────────────────
 def score_risk_rf(sensors: SensorData, patient_id: str = None):
@@ -264,7 +302,7 @@ def score_risk_rf(sensors: SensorData, patient_id: str = None):
         temp_f  = (temp * 9/5) + 32  # convert C to F for model
 
         features = np.array([[
-            age, sys_val, dia_val, bs_val, temp_f, hr
+            age, hr, temp_f, sys_val, dia_val, bs_val
         ]])
         features_scaled = scaler.transform(features)
         prediction      = rf_model.predict(features_scaled)[0]
@@ -628,6 +666,7 @@ def ingest_reading(payload: ReadingPayload):
         conn.commit()
         conn.close()
     store_weekly_summary(payload.patient_id, longitudinal)
+    check_retraining_threshold()
 
     return {
         "status":     "received",
@@ -654,7 +693,48 @@ def save_patient_profile(payload: PatientProfilePayload):
     ))
     conn.commit()
     conn.close()
+    if payload.data_consent:
+        check_retraining_threshold()
     return {"success": True, "patient_id": payload.patient_id, "data_consent": payload.data_consent}
+
+@app.get("/export-training-data")
+def export_training_data(username: str = Depends(verify_doctor)):
+    conn = get_db()
+    rows = conn.execute("""
+        SELECT r.heart_rate, r.spo2, r.temperature, r.systolic_bp,
+               r.diastolic_bp, r.blood_sugar, r.hrv_rmssd, r.respiration,
+               r.risk_level
+        FROM readings r
+        INNER JOIN patient_profiles p ON p.patient_id = r.patient_id
+        WHERE p.data_consent = 1
+        ORDER BY r.timestamp ASC
+    """).fetchall()
+    conn.close()
+    columns = [
+        "heart_rate", "spo2", "temperature", "systolic_bp", "diastolic_bp",
+        "blood_sugar", "hrv_rmssd", "respiration", "risk_level",
+    ]
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=columns)
+    writer.writeheader()
+    writer.writerows([dict(row) for row in rows])
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=materna-consented-training-data.csv"},
+    )
+
+@app.post("/mark-retrained")
+def mark_retrained(username: str = Depends(verify_doctor)):
+    conn = get_db()
+    row = conn.execute("""
+        SELECT MAX(r.id) AS latest_id FROM readings r
+        INNER JOIN patient_profiles p ON p.patient_id = r.patient_id
+        WHERE p.data_consent = 1
+    """).fetchone()
+    conn.close()
+    set_retraining_state("last_retrained_reading_id", str(row["latest_id"] or 0))
+    return {"success": True, "last_retrained_reading_id": row["latest_id"] or 0}
 
 @app.get("/patient-trends/{patient_id}")
 def get_patient_trends(patient_id: str,

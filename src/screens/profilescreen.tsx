@@ -1,5 +1,6 @@
 import Button from "../components/Button";
 import React, { useEffect, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   ActivityIndicator,
   Alert,
@@ -28,9 +29,10 @@ import { assessMaternalRisk } from "../utils/maternalRiskAssessment";
 
 interface Props {
   theme: "dark" | "light";
+  onResetOnboarding?: () => void;
 }
 
-export default function ProfileScreen({ theme }: Props) {
+export default function ProfileScreen({ theme, onResetOnboarding }: Props) {
   const dark = theme === "dark";
   const c = dark ? colors.dark : colors.light;
   const [profile, setProfile] = useState<ProfileData>(EMPTY_PROFILE);
@@ -75,6 +77,19 @@ export default function ProfileScreen({ theme }: Props) {
     await persistProfile();
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
+  }
+
+  async function resetOnboarding() {
+    const next = { ...profile, dataConsent: false, healthHistoryCompleted: false };
+    try {
+      await AsyncStorage.removeItem("dataConsent");
+      await saveProfile(next);
+      setProfile(next);
+    } finally {
+      // This is a demo/testing control: always return to onboarding even if
+      // storage is temporarily unavailable on the current device or web build.
+      onResetOnboarding?.();
+    }
   }
 
   async function handleReport() {
@@ -263,6 +278,10 @@ export default function ProfileScreen({ theme }: Props) {
           </Text>
         </Button>
 
+        <Button style={[styles.resetButton, { borderColor: c.inputBorder }]} onPress={resetOnboarding}>
+          <Text style={[styles.resetButtonText, { color: c.textMuted }]}>Reset Onboarding (Testing)</Text>
+        </Button>
+
         {profile.updatedAt ? (
           <Text style={[styles.updatedText, { color: c.textMuted }]}>
             Last saved {new Date(profile.updatedAt).toLocaleString()}
@@ -390,6 +409,8 @@ const styles = StyleSheet.create({
   saveButtonText: { color: "#ffffff", fontSize: 16, fontWeight: "700" },
   reportButton: { flexDirection: "row", gap: 8, justifyContent: "center", marginTop: 10, borderWidth: 1, borderRadius: 10, paddingVertical: 13, alignItems: "center" },
   reportButtonText: { fontSize: 14, fontWeight: "700" },
+  resetButton: { borderWidth: 1, borderRadius: 10, paddingVertical: 12, alignItems: "center", marginTop: 10 },
+  resetButtonText: { fontSize: 13, fontWeight: "700" },
   reportStatus: { fontSize: 11, lineHeight: 16, textAlign: "center", marginTop: 10 },
   updatedText: { fontSize: 10, textAlign: "center", marginTop: 12 },
   disclaimer: { fontSize: 11, textAlign: "center", marginTop: 12, lineHeight: 16 },
