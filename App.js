@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Animated, BackHandler, View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Pressable, ScrollView } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import HomeScreen from "./src/screens/HomeScreen";
 import VitalsScreen from "./src/screens/VitalsScreen";
 import ProfileScreen from "./src/screens/profilescreen";
@@ -11,6 +12,8 @@ import DoctorWorkspace from "./src/screens/doctor/DoctorWorkspace";
 import { loadProfile } from "./src/storage/profileStorage";
 import { getSharedReports } from "./src/api/maternaAPI";
 import { createAndShareProfileReport } from "./src/utils/profileReport";
+import ConsentScreen from "./src/screens/ConsentScreen";
+import HealthHistoryScreen from "./src/screens/HealthHistoryScreen";
 
 export default function App() {
   const [showWelcome, setShowWelcome] = useState(true);
@@ -20,6 +23,8 @@ export default function App() {
   const [showEmergency, setShowEmergency] = useState(false);
   const [userType, setUserType] = useState(null); // null = login screen
   const [activeScenario, setActiveScenario] = useState("Green");
+  const [patientOnboarding, setPatientOnboarding] = useState("ready");
+  const [dataConsent, setDataConsent] = useState(false);
   const welcomeOpacity = useRef(new Animated.Value(0)).current;
   const welcomeScale = useRef(new Animated.Value(0.9)).current;
   const welcomeLift = useRef(new Animated.Value(18)).current;
@@ -92,6 +97,25 @@ export default function App() {
     setTheme(theme === "dark" ? "light" : "dark");
   }
 
+  async function beginPatientExperience() {
+    setUserType("patient");
+    const storedConsent = await AsyncStorage.getItem("dataConsent");
+    if (storedConsent === null) {
+      setPatientOnboarding("consent");
+      return;
+    }
+    const consent = storedConsent === "true";
+    setDataConsent(consent);
+    const profile = await loadProfile();
+    setPatientOnboarding(profile?.healthHistoryCompleted ? "ready" : "history");
+  }
+
+  async function handleConsent(consent) {
+    await AsyncStorage.setItem("dataConsent", String(consent));
+    setDataConsent(consent);
+    setPatientOnboarding("history");
+  }
+
   const dark = theme === "dark";
   const navBg = dark ? "#0f1117" : "#ffffff";
   const navBorder = dark ? "#1e2233" : "#e5e7eb";
@@ -149,7 +173,7 @@ export default function App() {
           {/* Patient login */}
           <Pressable
             style={[login.loginBtn, { borderColor: "#22C55E", backgroundColor: "#0a1a0f" }]}
-            onPress={() => setUserType("patient")}
+            onPress={beginPatientExperience}
           >
             <Text style={login.loginBtnIcon}>🤰</Text>
             <View style={{ flex: 1 }}>
@@ -197,6 +221,14 @@ export default function App() {
   }
 
   // ── PATIENT APP ───────────────────────────────────────────
+
+  if (patientOnboarding === "consent") {
+    return <ConsentScreen onChoose={handleConsent} />;
+  }
+
+  if (patientOnboarding === "history") {
+    return <HealthHistoryScreen consent={dataConsent} onComplete={() => setPatientOnboarding("ready")} />;
+  }
 
   if (showChat) {
     return (

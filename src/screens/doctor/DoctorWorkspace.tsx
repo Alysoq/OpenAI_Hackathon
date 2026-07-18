@@ -27,6 +27,7 @@ import {
 import {
   acknowledgeEmergencyAlert,
   getEmergencyAlerts,
+  getPatientEvals,
   getSharedReports,
 } from "../../api/maternaAPI";
 import { createAndShareProfileReport } from "../../utils/profileReport";
@@ -58,6 +59,23 @@ interface Patient {
     respiration: number;
     bloodPressure: string;
   };
+}
+
+interface PatientEvaluation {
+  patient_id: string;
+  average_rf_confidence: number | null;
+  total_readings: number;
+  high_risk_readings: number;
+  medium_risk_readings: number;
+  low_risk_readings: number;
+  uncertain_readings: Array<{ timestamp: string; reasons: string[] }>;
+  confidence_trend: Array<{
+    timestamp: string;
+    risk_score: number;
+    risk_level: string;
+    rf_confidence?: number | null;
+  }>;
+  has_low_confidence_last_24h: boolean;
 }
 
 const PATIENTS: Patient[] = [
@@ -278,6 +296,7 @@ export default function DoctorWorkspace({ theme, onLogout }: Props) {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [reports, setReports] = useState<any[]>(DEMO_REPORTS);
   const [emergencyAlerts, setEmergencyAlerts] = useState<any[]>([]);
+  const [patientEvals, setPatientEvals] = useState<Record<string, PatientEvaluation>>({});
   const [search, setSearch] = useState("");
   const announcedAlertIds = React.useRef<Set<string>>(new Set());
   const acknowledgedAlertIds = React.useRef<Set<string>>(new Set());
@@ -314,6 +333,24 @@ export default function DoctorWorkspace({ theme, onLogout }: Props) {
     }
     refreshReports();
     const interval = setInterval(refreshReports, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    async function refreshPatientEvals() {
+      const results = await Promise.all(
+        PATIENTS.map(async (patient) => [patient.id, await getPatientEvals(patient.id)] as const)
+      );
+      setPatientEvals((current) => {
+        const next = { ...current };
+        results.forEach(([patientId, evaluation]) => {
+          if (evaluation) next[patientId] = evaluation;
+        });
+        return next;
+      });
+    }
+    refreshPatientEvals();
+    const interval = setInterval(refreshPatientEvals, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -436,11 +473,12 @@ export default function DoctorWorkspace({ theme, onLogout }: Props) {
           <PatientDetail
             patient={selectedPatient}
             report={reports.find((item) => item.patient_id === selectedPatient.id)}
+            evaluation={patientEvals[selectedPatient.id]}
             c={c}
             onBack={() => setSelectedPatient(null)}
           />
         ) : view === "home" ? (
-          <HomeView patients={dashboardPatients} reports={reports} c={c} openPatient={openPatient} />
+          <HomeView patients={dashboardPatients} reports={reports} evaluations={patientEvals} c={c} openPatient={openPatient} />
         ) : view === "patients" ? (
           <PatientsView
             patients={filteredPatients}
@@ -487,11 +525,13 @@ function DoctorHeader({ c, onLogout }: { c: any; onLogout: () => void }) {
 function HomeView({
   patients,
   reports,
+  evaluations,
   c,
   openPatient,
 }: {
   patients: Patient[];
   reports: any[];
+  evaluations: Record<string, PatientEvaluation>;
   c: any;
   openPatient: (patient: Patient) => void;
 }) {
@@ -531,6 +571,8 @@ function HomeView({
       {patients.slice(0, 3).map((patient) => (
         <PatientRow key={patient.id} patient={patient} c={c} onPress={() => openPatient(patient)} />
       ))}
+
+      <ModelEvaluationPanel patients={patients} evaluations={evaluations} c={c} openPatient={openPatient} />
 
       <SectionTitle title="Recent reports" c={c} />
       {reports.length === 0 ? (
@@ -596,11 +638,13 @@ function ReportsView({ reports, c }: { reports: any[]; c: any }) {
 function PatientDetail({
   patient,
   report,
+  evaluation,
   c,
   onBack,
 }: {
   patient: Patient;
   report: any;
+  evaluation?: PatientEvaluation;
   c: any;
   onBack: () => void;
 }) {
@@ -656,6 +700,8 @@ function PatientDetail({
           ))}
         </View>
       </InfoSection>
+
+      <ConfidenceTrend evaluation={evaluation} c={c} />
 
       <InfoSection title="Risk and pregnancy history" c={c}>
         {report?.earlyRiskAssessment ? (
@@ -807,6 +853,89 @@ function ReportRow({ report, c, expanded = false }: { report: any; c: any; expan
   );
 }
 
+function ModelEvaluationPanel({
+  patients,
+  evaluations,
+  c,
+  openPatient,
+}: {
+  patients: Patient[];
+  evaluations: Record<string, PatientEvaluation>;
+  c: any;
+  openPatient: (patient: Patient) => void;
+}) {
+  const totalHighAlerts = Object.values(evaluations).reduce(
+    (total, evaluation) => total + evaluation.high_risk_readings,
+    0
+  );
+  const hasEvaluationData = Object.keys(evaluations).length > 0;
+
+  return (
+    <View style={[styles.modelEvalCard, { backgroundColor: c.card, borderColor: c.border }]}>
+      <Text style={[styles.modelEvalTitle, { color: c.text }]}>Model Evaluation</Text>
+      <Text style={[styles.modelEvalSubtitle, { color: c.muted }]}>Random Forest performance · last 7 days</Text>
+      <View style={styles.evalSummaryRow}>
+        <Text style={[styles.evalSummaryValue, { color: "#e11d48" }]}>{totalHighAlerts}</Text>
+        <Text style={[styles.evalSummaryLabel, { color: c.muted }]}>HIGH alerts this week</Text>
+      </View>
+      {!hasEvaluationData ? (
+        <Text style={[styles.evalEmpty, { color: c.muted }]}>No model readings available yet.</Text>
+      ) : (
+        patients.map((patient) => {
+          const evaluation = evaluations[patient.id];
+          if (!evaluation) return null;
+          const confidence = evaluation.average_rf_confidence == null
+            ? null
+            : Math.round(evaluation.average_rf_confidence * 100);
+          return (
+            <Pressable key={patient.id} style={[styles.evalPatientRow, { borderTopColor: c.border }]} onPress={() => openPatient(patient)}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.evalPatientName, { color: c.text }]}>{patient.name}</Text>
+                <View style={[styles.confidenceTrack, { backgroundColor: c.border }]}>
+                  <View style={[styles.confidenceFill, { width: `${confidence ?? 0}%` }]} />
+                </View>
+                <Text style={[styles.confidenceText, { color: c.muted }]}>
+                  RF confidence: {confidence == null ? "No readings" : `${confidence}%`}
+                </Text>
+              </View>
+              {evaluation.has_low_confidence_last_24h && (
+                <Text style={styles.uncertainBadge}>Uncertain - Review Recommended</Text>
+              )}
+            </Pressable>
+          );
+        })
+      )}
+    </View>
+  );
+}
+
+function ConfidenceTrend({ evaluation, c }: { evaluation?: PatientEvaluation; c: any }) {
+  const trend = evaluation?.confidence_trend || [];
+  return (
+    <InfoSection title="Model evaluation" c={c}>
+      {!evaluation || trend.length === 0 ? (
+        <Text style={[styles.evalEmpty, { color: c.muted }]}>No confidence readings available for this patient.</Text>
+      ) : (
+        <>
+          <Text style={[styles.confidenceText, { color: c.text }]}>Average RF confidence: {Math.round((evaluation.average_rf_confidence || 0) * 100)}%</Text>
+          <View style={styles.trendChart}>
+            {trend.slice(-20).map((reading, index) => {
+              const value = reading.rf_confidence ?? reading.risk_score ?? 0;
+              return <View key={`${reading.timestamp}-${index}`} style={[styles.trendBar, { height: `${Math.max(6, value * 100)}%` }]} />;
+            })}
+          </View>
+          <Text style={[styles.chartCaption, { color: c.muted }]}>Confidence trend · most recent 20 readings</Text>
+          {evaluation.uncertain_readings.length > 0 && (
+            <Text style={[styles.uncertainDetail, { color: "#d97706" }]}>
+              {evaluation.uncertain_readings.length} uncertain risk reading{evaluation.uncertain_readings.length === 1 ? "" : "s"} in the last 7 days
+            </Text>
+          )}
+        </>
+      )}
+    </InfoSection>
+  );
+}
+
 function PatientRow({ patient, c, onPress }: { patient: Patient; c: any; onPress: () => void }) {
   return (
     <Pressable style={[styles.patientCard, { backgroundColor: c.card, borderColor: c.border, borderLeftColor: patient.riskColor }]} onPress={onPress}>
@@ -949,6 +1078,23 @@ const styles = StyleSheet.create({
   alertTitle: { color: "#ffffff", fontSize: 15, fontWeight: "800", marginTop: 4 },
   alertBody: { color: "#fecdd3", fontSize: 11, lineHeight: 16, marginTop: 4 },
   sectionTitle: { fontSize: 15, fontWeight: "800", marginTop: 20, marginBottom: 9 },
+  modelEvalCard: { borderWidth: 1, borderRadius: 8, padding: 13, marginTop: 20 },
+  modelEvalTitle: { fontSize: 15, fontWeight: "900" },
+  modelEvalSubtitle: { fontSize: 10, marginTop: 3 },
+  evalSummaryRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12, marginBottom: 4 },
+  evalSummaryValue: { fontSize: 23, fontWeight: "900" },
+  evalSummaryLabel: { fontSize: 10, fontWeight: "700" },
+  evalPatientRow: { flexDirection: "row", alignItems: "center", gap: 9, borderTopWidth: 1, paddingTop: 10, marginTop: 7 },
+  evalPatientName: { fontSize: 12, fontWeight: "800" },
+  confidenceTrack: { height: 7, borderRadius: 4, overflow: "hidden", marginTop: 6 },
+  confidenceFill: { height: "100%", borderRadius: 4, backgroundColor: "#22C55E" },
+  confidenceText: { fontSize: 10, fontWeight: "700", marginTop: 5 },
+  uncertainBadge: { color: "#9a3412", backgroundColor: "#ffedd5", borderRadius: 5, paddingHorizontal: 6, paddingVertical: 4, fontSize: 8, fontWeight: "900", maxWidth: 112, textAlign: "center" },
+  evalEmpty: { fontSize: 11, marginTop: 10, lineHeight: 16 },
+  trendChart: { height: 92, flexDirection: "row", alignItems: "flex-end", gap: 3, marginTop: 12, borderBottomWidth: 1, borderBottomColor: "#94a3b8", paddingHorizontal: 2 },
+  trendBar: { flex: 1, minWidth: 3, backgroundColor: "#22C55E", borderTopLeftRadius: 2, borderTopRightRadius: 2 },
+  chartCaption: { fontSize: 9, marginTop: 5 },
+  uncertainDetail: { fontSize: 10, fontWeight: "800", marginTop: 9 },
   patientCard: { flexDirection: "row", alignItems: "center", gap: 11, borderWidth: 1, borderLeftWidth: 4, borderRadius: 8, padding: 12, marginBottom: 8 },
   avatar: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   avatarText: { fontSize: 12, fontWeight: "900" },

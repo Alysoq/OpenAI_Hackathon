@@ -5,6 +5,7 @@ import {
 } from '../config/config';
 
 const reportedApiIssues = new Set();
+const MULTIPART_HEADERS = { "ngrok-skip-browser-warning": "true" };
 
 function logApiIssueOnce(key, message) {
   if (reportedApiIssues.has(key)) return;
@@ -39,6 +40,35 @@ export const sendSensorData = async (patientId, patientName, weeks, sensors) => 
     return await response.json();
   } catch (error) {
     logApiIssueOnce('sendSensorData', 'Sensor server is currently unavailable.');
+    return null;
+  }
+};
+
+export const savePatientProfile = async (patientId, profile) => {
+  try {
+    const response = await fetch(`${MATERNA_URL}/patient-profile`, {
+      method: "POST",
+      headers: BASE_HEADERS,
+      body: JSON.stringify({
+        patient_id: patientId,
+        data_consent: profile.dataConsent === true,
+        profile,
+        conditions: {
+          diabetes: profile.hasDiabetes,
+          gestational_diabetes: profile.hasGestationalDiabetes,
+          high_blood_pressure: profile.hasHighBP,
+          previous_preeclampsia: profile.hasPreviousPreeclampsia,
+          heart_condition: profile.hasHeartCondition,
+          thyroid_disorder: profile.hasThyroidDisorder,
+          anemia: profile.hasAnemia,
+          obesity: profile.hasObesity,
+        },
+      }),
+    });
+    if (!response.ok) throw new Error(`Patient profile request failed with status ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    logApiIssueOnce("savePatientProfile", "Patient profile could not reach the server.");
     return null;
   }
 };
@@ -85,6 +115,71 @@ export const askAssistant = async (patientId, message, currentSensors, riskLevel
   }
 };
 
+function appendMultimodalContext(formData, patientId, currentSensors, riskLevel) {
+  formData.append("patient_id", patientId);
+  formData.append("risk_level", riskLevel || "unknown");
+  if (currentSensors) {
+    formData.append("sensors_json", JSON.stringify({
+      heart_rate: currentSensors.heartRate,
+      spo2: currentSensors.spO2,
+      temperature: currentSensors.temperature,
+      hrv_rmssd: currentSensors.hrv,
+      gsr: currentSensors.gsr,
+      motion: currentSensors.motion,
+      ptt: currentSensors.ptt || null,
+      systolic_bp: currentSensors.systolicBp || null,
+      diastolic_bp: currentSensors.diastolicBp || null,
+      respiration: currentSensors.respiration || null,
+      blood_sugar: currentSensors.bloodSugar || null,
+      fall_detected: currentSensors.fall || false,
+    }));
+  }
+}
+
+export const transcribeAudio = async (patientId, audioUri, currentSensors, riskLevel) => {
+  try {
+    const formData = new FormData();
+    formData.append("audio", {
+      uri: audioUri,
+      name: "materna-voice.m4a",
+      type: "audio/m4a",
+    });
+    appendMultimodalContext(formData, patientId, currentSensors, riskLevel);
+    const response = await fetch(`${MATERNA_URL}/transcribe`, {
+      method: "POST",
+      headers: MULTIPART_HEADERS,
+      body: formData,
+    });
+    if (!response.ok) throw new Error(`Transcription request failed with status ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    logApiIssueOnce("transcribeAudio", "Voice transcription service is currently unavailable.");
+    return null;
+  }
+};
+
+export const analyzeImage = async (patientId, imageUri, currentSensors, riskLevel) => {
+  try {
+    const formData = new FormData();
+    formData.append("image", {
+      uri: imageUri,
+      name: "materna-photo.jpg",
+      type: "image/jpeg",
+    });
+    appendMultimodalContext(formData, patientId, currentSensors, riskLevel);
+    const response = await fetch(`${MATERNA_URL}/analyze-image`, {
+      method: "POST",
+      headers: MULTIPART_HEADERS,
+      body: formData,
+    });
+    if (!response.ok) throw new Error(`Image analysis request failed with status ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    logApiIssueOnce("analyzeImage", "Image analysis service is currently unavailable.");
+    return null;
+  }
+};
+
 export const getAllPatients = async () => {
   try {
     const response = await fetch(`${MATERNA_URL}/patients`, {
@@ -111,6 +206,22 @@ export const getPatientHistory = async (patientId, hours = 24) => {
   } catch (error) {
     logApiIssueOnce('getPatientHistory', 'Patient history could not be refreshed.');
     return [];
+  }
+};
+
+export const getPatientEvals = async (patientId) => {
+  try {
+    const response = await fetch(`${MATERNA_URL}/evals/${patientId}`, {
+      method: 'GET',
+      headers: DOCTOR_HEADERS,
+    });
+    if (!response.ok) {
+      throw new Error(`Evaluation request failed with status ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    logApiIssueOnce('getPatientEvals', 'Model evaluation data could not be refreshed.');
+    return null;
   }
 };
 

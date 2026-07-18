@@ -9,8 +9,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Alert,
+  Image,
 } from "react-native";
-import { askAssistant, shareProfileReport } from "../api/maternaAPI";
+import { Audio } from "expo-av";
+import * as ImagePicker from "expo-image-picker";
+import { analyzeImage, askAssistant, shareProfileReport, transcribeAudio } from "../api/maternaAPI";
 import {
   loadChatRiskSignals,
   recordChatRiskSignal,
@@ -33,80 +37,8 @@ interface Message {
   from: "user" | "materna";
   text: string;
   alert?: boolean;
-}
-
-const RESPONSES: { keywords: string[]; reply: string; alert?: boolean }[] = [
-  {
-    keywords: ["headache", "head"],
-    reply: "Mild headaches can be common in pregnancy. Drink water, rest, and avoid bright screens. If the headache is severe, sudden, or comes with blurry vision or swelling, contact your provider right away.",
-  },
-  {
-    keywords: ["swelling", "swollen", "feet", "ankles", "hands"],
-    reply: "⚠️ Swelling in your hands, face, or sudden severe swelling in your legs can be a sign of preeclampsia. Please contact your doctor or go to the hospital today.",
-    alert: true,
-  },
-  {
-    keywords: ["blurry", "vision", "eyes", "seeing"],
-    reply: "⚠️ Blurry or changed vision during pregnancy is a warning sign. This could be related to blood pressure. Please contact your provider immediately or go to the nearest hospital.",
-    alert: true,
-  },
-  {
-    keywords: ["nausea", "sick", "vomit", "throwing up"],
-    reply: "Nausea is very common, especially in the first trimester. Try small frequent meals, ginger tea, and staying hydrated. If you can't keep any food or water down for more than 24 hours, call your doctor.",
-  },
-  {
-    keywords: ["tired", "fatigue", "exhausted", "sleep"],
-    reply: "Fatigue is normal throughout pregnancy. Try to rest when you can, eat iron-rich foods, and stay hydrated. If you feel extremely tired along with dizziness or shortness of breath, let your provider know.",
-  },
-  {
-    keywords: ["kick", "movement", "baby moving", "not moving"],
-    reply: "Tracking baby movement is important. If you notice significantly fewer kicks than usual or no movement for several hours, contact your doctor right away. You can do a kick count — 10 movements in 2 hours is a good sign.",
-  },
-  {
-    keywords: [
-      "jaw",
-      "chest pain",
-      "chest pressure",
-      "shortness of breath",
-      "can't breathe",
-      "cannot breathe",
-      "trouble breathing",
-    ],
-    reply:
-      "Jaw pain with chest discomfort, shortness of breath, sweating, dizziness, or nausea can be an emergency. Call 911 now and do not drive yourself. If the jaw pain is isolated and mild, contact your healthcare provider promptly for advice.",
-    alert: true,
-  },
-  {
-    keywords: ["pain", "cramp", "cramping", "stomach", "belly"],
-    reply: "⚠️ Severe or persistent abdominal pain during pregnancy should not be ignored. If the pain is sharp, constant, or comes with bleeding or fever, go to the hospital immediately.",
-    alert: true,
-  },
-  {
-    keywords: ["bleed", "bleeding", "spotting"],
-    reply: "⚠️ Any bleeding during pregnancy should be reported to your doctor right away, even if it seems light. Please call your provider or go to the hospital.",
-    alert: true,
-  },
-  {
-    keywords: ["blood pressure", "bp", "pressure"],
-    reply: "Your current blood pressure reading from the bracelet is 115/74 mmHg, which is in the normal range. If you ever feel dizzy, have a headache, or notice swelling, check in with your provider.",
-  },
-  {
-    keywords: ["heart rate", "heartbeat", "pulse"],
-    reply: "Your heart rate is currently 77 bpm, which is normal for pregnancy. A resting heart rate between 60–100 bpm is healthy. Light exercise is fine — just don't push too hard.",
-  },
-];
-
-const FALLBACK =
-  "I'm here to help with pregnancy questions and symptoms. Could you describe what you're feeling in a bit more detail? For urgent concerns, please contact your doctor or call 911.";
-
-function getResponse(input: string): { reply: string; alert?: boolean } {
-  const lower = input.toLowerCase();
-  for (const r of RESPONSES) {
-    if (r.keywords.some((k) => lower.includes(k))) {
-      return { reply: r.reply, alert: r.alert };
-    }
-  }
-  return { reply: FALLBACK };
+  type?: "text" | "voice" | "image";
+  imageUri?: string;
 }
 
 export default function AIChatScreen({
@@ -129,10 +61,29 @@ export default function AIChatScreen({
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
+  const recordingRef = useRef<Audio.Recording | null>(null);
 
-  async function handleSend() {
-    const trimmed = input.trim();
+  async function recordRiskAndShare(message: string) {
+    const riskSignal = await recordChatRiskSignal(message);
+    if (!riskSignal) return;
+    const profile = await loadProfile();
+    if (!profile?.shareWithDoctor) return;
+    const chatSignals = await loadChatRiskSignals();
+    await shareProfileReport({
+      patient_id: patientId,
+      profile,
+      bracelet: sampleSensorData.bracelet,
+      vitals: sampleSensorData.vitals,
+      risk: sampleSensorData.risk,
+      earlyRiskAssessment: assessMaternalRisk(profile, chatSignals),
+      chatSignals,
+    });
+  }
+
+  async function handleSend(message = input) {
+    const trimmed = message.trim();
     if (!trimmed || isLoading) return;
 
     const userMsg: Message = {
@@ -144,22 +95,7 @@ export default function AIChatScreen({
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setIsLoading(true);
-    const riskSignal = await recordChatRiskSignal(trimmed);
-    if (riskSignal) {
-      const profile = await loadProfile();
-      if (profile?.shareWithDoctor) {
-        const chatSignals = await loadChatRiskSignals();
-        await shareProfileReport({
-          patient_id: patientId,
-          profile,
-          bracelet: sampleSensorData.bracelet,
-          vitals: sampleSensorData.vitals,
-          risk: sampleSensorData.risk,
-          earlyRiskAssessment: assessMaternalRisk(profile, chatSignals),
-          chatSignals,
-        });
-      }
-    }
+    await recordRiskAndShare(trimmed);
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
 
     const apiReply = await askAssistant(
@@ -168,18 +104,99 @@ export default function AIChatScreen({
       currentSensors,
       riskLevel
     );
-    const fallback = getResponse(trimmed);
-
     const botMsg: Message = {
       id: (Date.now() + 1).toString(),
       from: "materna",
-      text: apiReply || fallback.reply,
-      alert: apiReply ? false : fallback.alert,
+      text: apiReply || "Unable to reach the Materna AI service. Check the ngrok connection and try again.",
+      alert: !apiReply,
     };
 
     setIsLoading(false);
     setMessages((prev) => [...prev, botMsg]);
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+  }
+
+  async function startRecording() {
+    if (isLoading || isRecording) return;
+    try {
+      const permission = await Audio.requestPermissionsAsync();
+      if (permission.status !== "granted") {
+        Alert.alert("Microphone access needed", "Allow microphone access to send a voice message.");
+        return;
+      }
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      const recording = new Audio.Recording();
+      await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      await recording.startAsync();
+      recordingRef.current = recording;
+      setIsRecording(true);
+    } catch {
+      Alert.alert("Recording unavailable", "Unable to start voice recording on this device.");
+    }
+  }
+
+  async function stopRecording() {
+    const recording = recordingRef.current;
+    if (!recording) return;
+    recordingRef.current = null;
+    setIsRecording(false);
+    setIsLoading(true);
+    try {
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      if (!uri) throw new Error("Recording file missing");
+      const result = await transcribeAudio(patientId, uri, currentSensors, riskLevel);
+      if (!result?.transcript || !result?.response) throw new Error("Voice service unavailable");
+      await recordRiskAndShare(result.transcript);
+      setMessages((current) => [
+        ...current,
+        { id: Date.now().toString(), from: "user", text: result.transcript, type: "voice" },
+        { id: (Date.now() + 1).toString(), from: "materna", text: result.response },
+      ]);
+    } catch {
+      setMessages((current) => [...current, {
+        id: Date.now().toString(), from: "materna", alert: true,
+        text: "Unable to transcribe the voice message. Check the Materna AI server connection and try again.",
+      }]);
+    } finally {
+      setIsLoading(false);
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+    }
+  }
+
+  async function takePhoto() {
+    if (isLoading) return;
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (permission.status !== "granted") {
+      Alert.alert("Camera access needed", "Allow camera access to send a photo to Materna.");
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.7,
+    });
+    if (result.canceled || !result.assets?.[0]?.uri) return;
+    const imageUri = result.assets[0].uri;
+    setMessages((current) => [...current, {
+      id: Date.now().toString(), from: "user", text: "Photo shared", type: "image", imageUri,
+    }]);
+    setIsLoading(true);
+    try {
+      const analysis = await analyzeImage(patientId, imageUri, currentSensors, riskLevel);
+      if (!analysis?.response) throw new Error("Image service unavailable");
+      setMessages((current) => [...current, {
+        id: (Date.now() + 1).toString(), from: "materna",
+        text: `${analysis.description ? `Visible findings: ${analysis.description}\n\n` : ""}${analysis.response}`,
+      }]);
+    } catch {
+      setMessages((current) => [...current, {
+        id: (Date.now() + 1).toString(), from: "materna", alert: true,
+        text: "Unable to analyze the photo. Check the Materna AI server connection and try again.",
+      }]);
+    } finally {
+      setIsLoading(false);
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+    }
   }
 
   return (
@@ -217,6 +234,15 @@ export default function AIChatScreen({
               <Text style={[styles.senderLabel, { color: msg.alert ? c.alertText : c.textMuted }]}>
                 {msg.alert ? "⚠️ Materna Alert" : "Materna"}
               </Text>
+            )}
+            {msg.type === "voice" && (
+              <Text style={styles.multimodalLabel}>🎙 Voice message · transcribed</Text>
+            )}
+            {msg.type === "image" && msg.imageUri && (
+              <>
+                <Text style={styles.multimodalLabel}>📷 Photo shared</Text>
+                <Image source={{ uri: msg.imageUri }} style={styles.imageThumbnail} />
+              </>
             )}
             <Text
               style={[
@@ -257,10 +283,27 @@ export default function AIChatScreen({
           placeholder="Describe a symptom or ask a question..."
           placeholderTextColor={c.placeholder}
           returnKeyType="send"
-          onSubmitEditing={handleSend}
+          onSubmitEditing={() => handleSend()}
           onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120)}
           multiline
         />
+        <TouchableOpacity
+          style={[styles.mediaBtn, { backgroundColor: c.inputBg, borderColor: c.inputBorder }]}
+          onPress={takePhoto}
+          disabled={isLoading || isRecording}
+          accessibilityLabel="Take photo"
+        >
+          <Text style={styles.mediaBtnText}>📷</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.mediaBtn, { backgroundColor: isRecording ? "#ef4444" : c.inputBg, borderColor: isRecording ? "#ef4444" : c.inputBorder }]}
+          onPressIn={startRecording}
+          onPressOut={stopRecording}
+          disabled={isLoading}
+          accessibilityLabel="Hold to record voice message"
+        >
+          <Text style={styles.mediaBtnText}>{isRecording ? "⏺" : "🎙"}</Text>
+        </TouchableOpacity>
         <TouchableOpacity
           style={[
             styles.sendBtn,
@@ -269,7 +312,7 @@ export default function AIChatScreen({
                 input.trim() && !isLoading ? c.accent : c.inputBorder,
             },
           ]}
-          onPress={handleSend}
+          onPress={() => handleSend()}
           disabled={!input.trim() || isLoading}
         >
           <Text style={styles.sendBtnText}>↑</Text>
@@ -323,6 +366,8 @@ const styles = StyleSheet.create({
   userBubble: { alignSelf: "flex-end", borderBottomRightRadius: 4 },
   botBubble: { alignSelf: "flex-start", borderBottomLeftRadius: 4 },
   senderLabel: { fontSize: 10, fontWeight: "700", letterSpacing: 1, marginBottom: 4 },
+  multimodalLabel: { color: "#ffffff", fontSize: 10, fontWeight: "700", marginBottom: 6 },
+  imageThumbnail: { width: 180, height: 135, borderRadius: 9, marginBottom: 7, backgroundColor: "#d1d5db" },
   bubbleText: { fontSize: 15, lineHeight: 22 },
   inputRow: {
     flexDirection: "row",
@@ -349,5 +394,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  mediaBtn: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  mediaBtnText: { fontSize: 17 },
   sendBtnText: { color: "#fff", fontSize: 18, fontWeight: "700" },
 });

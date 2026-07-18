@@ -25,7 +25,14 @@ export interface ProfileData {
   hasDiabetes: boolean;
   hasAnemia: boolean;
   hasCSection: boolean;
+  hasGestationalDiabetes: boolean;
+  hasPreviousPreeclampsia: boolean;
+  hasHeartCondition: boolean;
+  hasThyroidDisorder: boolean;
+  hasObesity: boolean;
   shareWithDoctor: boolean;
+  dataConsent: boolean;
+  healthHistoryCompleted: boolean;
   updatedAt: string;
 }
 
@@ -48,7 +55,14 @@ export const EMPTY_PROFILE: ProfileData = {
   hasDiabetes: false,
   hasAnemia: false,
   hasCSection: false,
+  hasGestationalDiabetes: false,
+  hasPreviousPreeclampsia: false,
+  hasHeartCondition: false,
+  hasThyroidDisorder: false,
+  hasObesity: false,
   shareWithDoctor: false,
+  dataConsent: false,
+  healthHistoryCompleted: false,
   updatedAt: "",
 };
 
