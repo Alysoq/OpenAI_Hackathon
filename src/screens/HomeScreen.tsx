@@ -1,6 +1,7 @@
 import Button from "../components/Button";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
+  Animated,
   SafeAreaView,
   ScrollView,
   View,
@@ -8,20 +9,39 @@ import {
   StyleSheet,
   } from "react-native";
 import AnimatedWave from "../components/AnimatedWave";
-import { scenarios } from "../data/sampleSensorData";
-import type { RiskLevel, SensorData } from "../data/sampleSensorData";
+import type { SensorData } from "../data/sampleSensorData";
 import { Sparkles, Sun, Moon } from "lucide-react-native";
-import { DEMO_MODE } from "../config/config";
+import { JOGGING_DEMO } from "../config/config";
 import { getPatientHistory } from "../api/maternaAPI";
 
 type HomeScreenProps = {
   theme: "dark" | "light";
   toggleTheme: () => void;
   onAskMaterna: () => void;
-  activeScenario: RiskLevel;
-  onScenarioChange: (level: RiskLevel) => void;
-  patientId: string;
+  patientId?: string;
 };
+
+type BandVitals = {
+  heartRate: number;
+  oxygen: number;
+  temperature: number;
+  systolic: number;
+  diastolic: number;
+  respiration: number;
+  hrv: number;
+};
+
+const INITIAL_BAND_VITALS: BandVitals = {
+  heartRate: 83,
+  oxygen: 97,
+  temperature: 98.6,
+  systolic: 115,
+  diastolic: 75,
+  respiration: 16,
+  hrv: 43,
+};
+
+type BandPhase = "resting" | "jogging" | "recovery";
 
 type LiveReading = {
   heart_rate: number | null;
@@ -34,36 +54,63 @@ type LiveReading = {
   risk_level: string | null;
 };
 
-const DEMO_NORMAL = {
-  heart_rate: 88, spo2: 97, temperature: 98.6, systolic_bp: 118,
-  diastolic_bp: 76, respiration: 16, hrv: 42,
-};
-const DEMO_HIGH = {
-  heart_rate: 118, spo2: 91, temperature: 100.4, systolic_bp: 158,
-  diastolic_bp: 102, respiration: 24, hrv: 21,
-};
+function noisy(value: number, minimum: number, maximum: number, decimals = 0, amount = decimals ? 0.08 : 1) {
+  const result = Math.max(minimum, Math.min(maximum, value + (Math.random() - 0.5) * amount * 2));
+  return decimals ? Number(result.toFixed(decimals)) : Math.round(result);
+}
 
-function interpolateDemoVitals(progress: number) {
-  const p = Math.max(0, Math.min(1, progress));
-  const value = (key: keyof typeof DEMO_NORMAL) =>
-    DEMO_NORMAL[key] + (DEMO_HIGH[key] - DEMO_NORMAL[key]) * p;
+function interpolate(start: number, end: number, progress: number) {
+  return start + (end - start) * Math.max(0, Math.min(1, progress));
+}
 
+function getJoggingDemo(second: number): { vitals: BandVitals; phase: BandPhase } {
+  const cycleSecond = second % 45;
+  if (cycleSecond < 15) {
+    return {
+      phase: "resting",
+      vitals: {
+        heartRate: noisy(79, 76, 82, 0, 3), oxygen: noisy(97.5, 97, 98, 0, 0.5),
+        temperature: noisy(98.55, 98.4, 98.7, 1, 0.15), systolic: noisy(114, 112, 116, 0, 2),
+        diastolic: noisy(74, 72, 76, 0, 2), respiration: noisy(15, 14, 16), hrv: noisy(45, 42, 48, 0, 3),
+      },
+    };
+  }
+
+  if (cycleSecond < 35) {
+    const progress = (cycleSecond - 15) / 19;
+    return {
+      phase: "jogging",
+      vitals: {
+        heartRate: noisy(interpolate(82, 142, progress), 82, 142),
+        oxygen: noisy(96.5, 96, 97, 0, 0.5),
+        temperature: noisy(interpolate(98.7, 99.8, progress), 98.4, 99.8, 1, 0.08),
+        systolic: noisy(interpolate(116, 138, progress), 112, 138, 0, 1),
+        diastolic: noisy(76, 74, 78),
+        respiration: noisy(interpolate(16, 26, progress), 14, 26),
+        hrv: noisy(interpolate(42, 28, progress), 28, 48),
+      },
+    };
+  }
+
+  const progress = (cycleSecond - 35) / 9;
   return {
-    heartRate: Math.round(value("heart_rate")),
-    oxygen: Math.round(value("spo2")),
-    temperature: Number(value("temperature").toFixed(1)),
-    systolic: Math.round(value("systolic_bp")),
-    diastolic: Math.round(value("diastolic_bp")),
-    respiration: Math.round(value("respiration")),
-    hrv: Math.round(value("hrv")),
+    phase: "recovery",
+    vitals: {
+      heartRate: noisy(interpolate(142, 79, progress), 76, 142),
+      oxygen: noisy(interpolate(96, 97.5, progress), 96, 98),
+      temperature: noisy(interpolate(99.8, 98.55, progress), 98.4, 99.8, 1, 0.08),
+      systolic: noisy(interpolate(138, 114, progress), 112, 138, 0, 1),
+      diastolic: noisy(interpolate(76, 74, progress), 72, 78),
+      respiration: noisy(interpolate(26, 15, progress), 14, 26),
+      hrv: noisy(interpolate(28, 45, progress), 28, 48),
+    },
   };
 }
 
-function dataFromVitals(values: ReturnType<typeof interpolateDemoVitals>, riskLevel: "LOW" | "MEDIUM" | "HIGH"): SensorData {
-  const isHigh = riskLevel === "HIGH";
-  const isMedium = riskLevel === "MEDIUM";
-  const color = isHigh ? "#EF4444" : isMedium ? "#EAB308" : "#22C55E";
-  const status = isHigh ? "danger" : isMedium ? "warning" : "normal";
+function dataFromBandVitals(values: BandVitals, phase: BandPhase = "resting"): SensorData {
+  const color = "#22C55E";
+  const status = "normal";
+  const isJogging = phase === "jogging";
 
   return {
     bracelet: { connected: true, battery: 84, lastSynced: "just now" },
@@ -77,25 +124,23 @@ function dataFromVitals(values: ReturnType<typeof interpolateDemoVitals>, riskLe
       respiration: { title: "Respiration", value: String(values.respiration), unit: "/min", status },
     },
     risk: {
-      level: isHigh ? "Red" : isMedium ? "Yellow" : "Green",
-      message: isHigh ? "Critical vitals" : isMedium ? "Vitals changing" : "All clear",
-      confidence: isHigh ? "95%" : isMedium ? "88%" : "97%",
+      level: "Green",
+      message: isJogging ? "Active - Elevated Heart Rate Detected" : phase === "recovery" ? "Recovery" : "Resting",
+      confidence: "97%",
       color,
-      headline: isHigh ? "Seek emergency care now." : isMedium ? "Vitals are trending upward." : "Everything looks healthy.",
-      description: isHigh
-        ? "Your blood pressure, heart rate, and oxygen level indicate a possible preeclampsia emergency."
-        : isMedium
-          ? "Your vitals are moving away from your normal range. Materna is monitoring the pattern closely."
-          : "Materna sees stable vitals in your normal range.",
-      pattern: isHigh ? "Severe hypertension + low oxygen" : null,
-      action: isHigh ? "Seek emergency help immediately." : isMedium ? "Continue monitoring closely." : "No action needed",
+      headline: isJogging ? "Healthy activity detected." : "Everything looks healthy.",
+      description: isJogging
+        ? "Your heart rate is elevated from exercise while your other readings remain in a healthy range."
+        : "Materna is receiving stable, healthy readings from your connected wristband.",
+      pattern: null,
+      action: "No action needed",
     },
   };
 }
 
 function dataFromLiveReading(reading: LiveReading): SensorData {
-  const riskLevel = (reading.risk_level || "LOW").toUpperCase();
-  return dataFromVitals({
+  const level = (reading.risk_level || "LOW").toUpperCase();
+  const data = dataFromBandVitals({
     heartRate: reading.heart_rate ?? 0,
     oxygen: reading.spo2 ?? 0,
     temperature: reading.temperature ?? 0,
@@ -103,7 +148,25 @@ function dataFromLiveReading(reading: LiveReading): SensorData {
     diastolic: reading.diastolic_bp ?? 0,
     respiration: reading.respiration ?? 0,
     hrv: reading.hrv_rmssd ?? 0,
-  }, riskLevel === "HIGH" ? "HIGH" : riskLevel === "MEDIUM" ? "MEDIUM" : "LOW");
+  });
+
+  if (level === "HIGH" || level === "MEDIUM") {
+    const isHigh = level === "HIGH";
+    const color = isHigh ? "#EF4444" : "#EAB308";
+    Object.values(data.vitals).forEach((vital) => {
+      vital.status = isHigh ? "danger" : "warning";
+    });
+    data.risk = {
+      ...data.risk,
+      level: isHigh ? "Red" : "Yellow",
+      message: isHigh ? "Urgent" : "Heads up",
+      color,
+      headline: isHigh ? "Your care team should review these readings now." : "Your readings need attention.",
+      description: "Showing the latest risk assessment received from your wristband.",
+      action: isHigh ? "Seek care immediately." : "Contact your care team today.",
+    };
+  }
+  return data;
 }
 
 function VitalCard({
@@ -150,63 +213,55 @@ export default function HomeScreen({
   theme,
   toggleTheme,
   onAskMaterna,
-  activeScenario,
-  onScenarioChange,
-  patientId,
+  patientId = "patient_001",
 }: HomeScreenProps) {
   const isDark = theme === "dark";
-  const [demoProgress, setDemoProgress] = useState(0);
+  const [demoSecond, setDemoSecond] = useState(0);
   const [liveReading, setLiveReading] = useState<LiveReading | null>(null);
+  const connectionPulse = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    if (!DEMO_MODE) return;
-
-    // Eight seconds of stable readings, followed by 15 seconds of changes.
-    // Transition values update every two seconds and finish exactly at HIGH risk.
-    let transitionInterval: ReturnType<typeof setInterval> | undefined;
-    let finishTransition: ReturnType<typeof setTimeout> | undefined;
-    const transitionStart = setTimeout(() => {
-      const startedAt = Date.now();
-      const updateProgress = () => {
-        setDemoProgress(Math.min((Date.now() - startedAt) / 15000, 1));
-      };
-      updateProgress();
-      transitionInterval = setInterval(updateProgress, 2000);
-      finishTransition = setTimeout(() => {
-        setDemoProgress(1);
-        if (transitionInterval) clearInterval(transitionInterval);
-      }, 15000);
-    }, 8000);
-
-    return () => {
-      clearTimeout(transitionStart);
-      if (transitionInterval) clearInterval(transitionInterval);
-      if (finishTransition) clearTimeout(finishTransition);
-    };
+    if (!JOGGING_DEMO) return;
+    const update = setInterval(() => setDemoSecond((second) => second + 1), 1000);
+    return () => clearInterval(update);
   }, []);
 
   useEffect(() => {
-    if (DEMO_MODE) return;
-
+    if (JOGGING_DEMO) return;
     let isMounted = true;
     const loadLatestReading = async () => {
       const readings = await getPatientHistory(patientId, 24);
       const latest = readings?.[readings.length - 1];
       if (isMounted && latest) setLiveReading(latest);
     };
-
     loadLatestReading();
-    const interval = setInterval(loadLatestReading, 5000);
+    const update = setInterval(loadLatestReading, 5000);
     return () => {
       isMounted = false;
-      clearInterval(interval);
+      clearInterval(update);
     };
   }, [patientId]);
 
-  const demoRiskLevel = demoProgress >= 1 ? "HIGH" : demoProgress > 0 ? "MEDIUM" : "LOW";
-  const data = DEMO_MODE
-    ? dataFromVitals(interpolateDemoVitals(demoProgress), demoRiskLevel)
-    : liveReading ? dataFromLiveReading(liveReading) : scenarios[activeScenario];
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(connectionPulse, { toValue: 0.35, duration: 800, useNativeDriver: true }),
+        Animated.timing(connectionPulse, { toValue: 1, duration: 800, useNativeDriver: true }),
+      ])
+    );
+    pulse.start();
+    return () => {
+      pulse.stop();
+    };
+  }, [connectionPulse]);
+
+  const joggingDemo = getJoggingDemo(demoSecond);
+  const data = JOGGING_DEMO
+    ? dataFromBandVitals(joggingDemo.vitals, joggingDemo.phase)
+    : liveReading ? dataFromLiveReading(liveReading) : dataFromBandVitals(INITIAL_BAND_VITALS);
+  const braceletStatus = JOGGING_DEMO && joggingDemo.phase === "jogging"
+    ? "Connected - Active"
+    : "Connected";
 
   const colors = {
     background: isDark ? "#05070A" : "#F8FAFC",
@@ -220,10 +275,7 @@ export default function HomeScreen({
   const riskColor = data.risk.color;
   const vitals = data.vitals;
 
-  const riskCardBg =
-    activeScenario === "Red" ? (isDark ? "#1a0505" : "#fff5f5") :
-    activeScenario === "Yellow" ? (isDark ? "#1a1505" : "#fffbeb") :
-    (isDark ? "#101418" : "#FFFFFF");
+  const riskCardBg = isDark ? "#101418" : "#FFFFFF";
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
@@ -236,10 +288,8 @@ export default function HomeScreen({
           {/* Top row — bracelet status + theme toggle */}
           <View style={styles.topRow}>
             <View style={styles.braceletStatus}>
-              <View style={[styles.connectedDot, { backgroundColor: "#22C55E" }]} />
-              <Text style={[styles.braceletText, { color: colors.mutedText }]}>
-            {DEMO_MODE ? "Demo vitals · local only" : `Bracelet connected · ${data.bracelet.lastSynced}`}
-              </Text>
+              <Animated.View style={[styles.connectedDot, { backgroundColor: "#22C55E", opacity: connectionPulse }]} />
+              <Text style={[styles.braceletText, { color: colors.mutedText }]}>{braceletStatus}</Text>
             </View>
             <Button
               onPress={toggleTheme}
@@ -260,34 +310,6 @@ export default function HomeScreen({
               {data.mother.name} · Week {data.mother.pregnancyWeek}
             </Text>
           </View>
-
-          {/* Scenario controls only apply outside the self-running local demo. */}
-          {!DEMO_MODE && (
-            <View style={styles.dotSwitcher}>
-              {(["Green", "Yellow", "Red"] as RiskLevel[]).map((level) => (
-                <Button
-                  key={level}
-                  onPress={() => onScenarioChange(level)}
-                  style={[
-                    styles.switcherDot,
-                    {
-                      backgroundColor: scenarios[level].risk.color,
-                      width: activeScenario === level ? 28 : 10,
-                      opacity: activeScenario === level ? 1 : 0.4,
-                    },
-                  ]}
-                />
-              ))}
-            </View>
-          )}
-
-          {DEMO_MODE && demoRiskLevel === "HIGH" && (
-            <View style={styles.criticalAlert}>
-              <Text style={styles.criticalAlertText}>
-                ⚠️ Critical vitals detected — possible preeclampsia. Seek emergency help immediately.
-              </Text>
-            </View>
-          )}
 
           {/* Risk card */}
           <View style={[
@@ -372,10 +394,6 @@ const styles = StyleSheet.create({
   brandDot: { width: 10, height: 10, borderRadius: 99 },
   brand: { fontSize: 14, fontWeight: "900", letterSpacing: 2, fontFamily: "Qika-Bold" },
   week: { fontSize: 12, marginLeft: 4 },
-  dotSwitcher: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 12 },
-  switcherDot: { height: 10, borderRadius: 5 },
-  criticalAlert: { backgroundColor: "#7F1D1D", borderColor: "#EF4444", borderWidth: 1, borderRadius: 12, padding: 12, marginBottom: 12 },
-  criticalAlertText: { color: "#FEE2E2", fontSize: 13, fontWeight: "800", lineHeight: 19 },
   statusCard: { borderWidth: 1, borderLeftWidth: 4, borderRadius: 18, padding: 16, marginBottom: 16 },
   statusTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 },
   statusPill: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, gap: 6 },
