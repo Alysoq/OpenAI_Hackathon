@@ -16,7 +16,15 @@
     },
     "plugins": [
       "expo-asset",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Allow Materna to take photos for symptom support.",
+          "photosPermission": "Allow Materna to select photos for symptom support."
+        }
+      ],
+      "expo-document-picker"
     ],
     "web": {
       "bundler": "metro"

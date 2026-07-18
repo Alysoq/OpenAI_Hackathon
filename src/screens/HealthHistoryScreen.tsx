@@ -1,7 +1,9 @@
 import React, { useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
 import { EMPTY_PROFILE, loadProfile, saveProfile } from "../storage/profileStorage";
 import { savePatientProfile } from "../api/maternaAPI";
+import Button from "../components/Button";
+import ToggleButton from "../components/ToggleButton";
 
 const CONDITIONS = [
   ["hasDiabetes", "Diabetes"], ["hasGestationalDiabetes", "Gestational diabetes"],
@@ -26,10 +28,22 @@ export default function HealthHistoryScreen({ consent, onComplete }: { consent: 
     <Text style={styles.brand}>MATERNA</Text>
     <Text style={styles.title}>Health history</Text>
     <Text style={styles.body}>Select any conditions you have had. This helps Materna personalize safety checks and is not a diagnosis.</Text>
-    <View style={styles.card}>{CONDITIONS.map(([key, label]) => <View key={key} style={styles.row}>
-      <Text style={styles.label}>{label}</Text><Switch value={answers[key] || false} onValueChange={(value) => setAnswers((current) => ({ ...current, [key]: value }))} trackColor={{ false: "#334155", true: "#22C55E" }} />
-    </View>)}</View>
-    <Pressable style={styles.button} onPress={finish} disabled={saving}>{saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Save health history</Text>}</Pressable>
+    <View style={styles.card}>{CONDITIONS.map(([key, label]) => {
+      const isActive = answers[key] || false;
+      return <View key={key} style={styles.row}>
+        <Text style={styles.label}>{label}</Text>
+        <ToggleButton
+          isActive={isActive}
+          onPress={() => setAnswers((current) => ({ ...current, [key]: !isActive }))}
+          accessibilityLabel={`Toggle ${label}`}
+          activeTrackColor="#22C55E"
+          inactiveTrackColor="#334155"
+        />
+      </View>;
+    })}</View>
+    <Button style={styles.button} onPress={finish} disabled={saving} accessibilityLabel="Save health history">
+      {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Save health history</Text>}
+    </Button>
   </ScrollView>;
 }
 
