@@ -267,6 +267,7 @@ export default function App() {
               onAskMaterna={() => setShowChat(true)}
               activeScenario={activeScenario}
               onScenarioChange={setActiveScenario}
+              patientId="patient_001"
             />
           )}
           {activeTab === "Vitals" && <VitalsScreen theme={theme} />}
