@@ -137,29 +137,54 @@ function appendMultimodalContext(formData, patientId, currentSensors, riskLevel)
 }
 
 export const transcribeAudio = async (patientId, audioUri, currentSensors, riskLevel) => {
+  const url = `${MATERNA_URL}/transcribe`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 120000);
   try {
+    console.log("[Materna API] transcribeAudio audio URI", audioUri);
+    console.log("[Materna API] transcribeAudio request", { url, patientId, audioUri, riskLevel });
     const formData = new FormData();
     formData.append("audio", {
       uri: audioUri,
-      name: "materna-voice.m4a",
+      name: "recording.m4a",
       type: "audio/m4a",
     });
     appendMultimodalContext(formData, patientId, currentSensors, riskLevel);
-    const response = await fetch(`${MATERNA_URL}/transcribe`, {
+    const response = await fetch(url, {
       method: "POST",
       headers: MULTIPART_HEADERS,
       body: formData,
+      signal: controller.signal,
     });
-    if (!response.ok) throw new Error(`Transcription request failed with status ${response.status}`);
-    return await response.json();
+    const responseText = await response.text();
+    console.log("[Materna API] transcribeAudio response", {
+      url,
+      status: response.status,
+      ok: response.ok,
+      body: responseText,
+    });
+    if (!response.ok) throw new Error(`Transcription request failed with status ${response.status}: ${responseText}`);
+    return JSON.parse(responseText);
   } catch (error) {
+    const message = error?.message || String(error);
+    console.log("[Materna API] transcribeAudio error", {
+      url,
+      message,
+      error: String(error),
+    });
     logApiIssueOnce("transcribeAudio", "Voice transcription service is currently unavailable.");
-    return null;
+    return { error: message };
+  } finally {
+    clearTimeout(timeout);
   }
 };
 
 export const analyzeImage = async (patientId, imageUri, currentSensors, riskLevel) => {
+  const url = `${MATERNA_URL}/analyze-image`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 120000);
   try {
+    console.log("[Materna API] analyzeImage request", { url, patientId, imageUri, riskLevel });
     const formData = new FormData();
     formData.append("image", {
       uri: imageUri,
@@ -167,16 +192,31 @@ export const analyzeImage = async (patientId, imageUri, currentSensors, riskLeve
       type: "image/jpeg",
     });
     appendMultimodalContext(formData, patientId, currentSensors, riskLevel);
-    const response = await fetch(`${MATERNA_URL}/analyze-image`, {
+    const response = await fetch(url, {
       method: "POST",
       headers: MULTIPART_HEADERS,
       body: formData,
+      signal: controller.signal,
     });
-    if (!response.ok) throw new Error(`Image analysis request failed with status ${response.status}`);
-    return await response.json();
+    const responseText = await response.text();
+    console.log("[Materna API] analyzeImage response", {
+      url,
+      status: response.status,
+      ok: response.ok,
+      body: responseText,
+    });
+    if (!response.ok) throw new Error(`Image analysis request failed with status ${response.status}: ${responseText}`);
+    return JSON.parse(responseText);
   } catch (error) {
+    console.log("[Materna API] analyzeImage error", {
+      url,
+      message: error?.message || String(error),
+      error: String(error),
+    });
     logApiIssueOnce("analyzeImage", "Image analysis service is currently unavailable.");
     return null;
+  } finally {
+    clearTimeout(timeout);
   }
 };
 

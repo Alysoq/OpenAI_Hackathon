@@ -63,6 +63,7 @@ export default function AIChatScreen({
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const recordingRef = useRef<Audio.Recording | null>(null);
@@ -97,6 +98,7 @@ export default function AIChatScreen({
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setIsLoading(true);
+    setLoadingMessage("Materna is thinking...");
     await recordRiskAndShare(trimmed);
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
 
@@ -114,6 +116,7 @@ export default function AIChatScreen({
     };
 
     setIsLoading(false);
+    setLoadingMessage("");
     setMessages((prev) => [...prev, botMsg]);
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
   }
@@ -143,25 +146,31 @@ export default function AIChatScreen({
     recordingRef.current = null;
     setIsRecording(false);
     setIsLoading(true);
+    setLoadingMessage("Transcribing...");
     try {
       await recording.stopAndUnloadAsync();
       const uri = recording.getURI();
+      console.log("[Materna AI] recording.getURI()", uri);
       if (!uri) throw new Error("Recording file missing");
       const result = await transcribeAudio(patientId, uri, currentSensors, riskLevel);
-      if (!result?.transcript || !result?.response) throw new Error("Voice service unavailable");
+      if (!result?.transcript || !result?.response) {
+        throw new Error(result?.error || "Voice service unavailable");
+      }
       await recordRiskAndShare(result.transcript);
       setMessages((current) => [
         ...current,
         { id: Date.now().toString(), from: "user", text: result.transcript, type: "voice" },
         { id: (Date.now() + 1).toString(), from: "materna", text: result.response },
       ]);
-    } catch {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       setMessages((current) => [...current, {
         id: Date.now().toString(), from: "materna", alert: true,
-        text: "Unable to transcribe the voice message. Check the Materna AI server connection and try again.",
+        text: `Voice transcription failed: ${errorMessage}`,
       }]);
     } finally {
       setIsLoading(false);
+      setLoadingMessage("");
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
     }
   }
@@ -183,6 +192,7 @@ export default function AIChatScreen({
       id: Date.now().toString(), from: "user", text: "Photo shared", type: "image", imageUri,
     }]);
     setIsLoading(true);
+    setLoadingMessage("Analyzing your photo...");
     try {
       const analysis = await analyzeImage(patientId, imageUri, currentSensors, riskLevel);
       if (!analysis?.response) throw new Error("Image service unavailable");
@@ -197,6 +207,7 @@ export default function AIChatScreen({
       }]);
     } finally {
       setIsLoading(false);
+      setLoadingMessage("");
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
     }
   }
@@ -256,8 +267,13 @@ export default function AIChatScreen({
           />
           )
         ))}
-        {isLoading && (
-          <ChatBubble from="materna" loading colors={c} />
+        {(isLoading || isRecording) && (
+          <ChatBubble
+            from="materna"
+            loading
+            text={isRecording ? "Listening..." : loadingMessage}
+            colors={c}
+          />
         )}
       </ScrollView>
 
@@ -278,14 +294,17 @@ export default function AIChatScreen({
           onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120)}
           multiline
         />
-        <TouchableOpacity
-          style={[styles.mediaBtn, { backgroundColor: c.inputBg, borderColor: c.inputBorder }]}
-          onPress={takePhoto}
-          disabled={isLoading || isRecording}
-          accessibilityLabel="Take photo"
-        >
-          <Text style={styles.mediaBtnText}>📷</Text>
-        </TouchableOpacity>
+        {/* Camera flow is retained above but intentionally hidden for this voice-only demo. */}
+        {false && (
+          <TouchableOpacity
+            style={[styles.mediaBtn, { backgroundColor: c.inputBg, borderColor: c.inputBorder }]}
+            onPress={takePhoto}
+            disabled={isLoading || isRecording}
+            accessibilityLabel="Take photo"
+          >
+            <Text style={styles.mediaBtnText}>📷</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity
           style={[styles.mediaBtn, { backgroundColor: isRecording ? "#ef4444" : c.inputBg, borderColor: isRecording ? "#ef4444" : c.inputBorder }]}
           onPressIn={startRecording}

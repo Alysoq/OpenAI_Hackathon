@@ -50,7 +50,10 @@ export default function ChatBubble({
         </Text>
       )}
       {loading ? (
-        <ActivityIndicator size="small" color={colors.accent} />
+        <View style={styles.loadingRow}>
+          <ActivityIndicator size="small" color={colors.accent} />
+          {text ? <Text style={[styles.loadingText, { color: colors.textMuted }]}>{text}</Text> : null}
+        </View>
       ) : (
         <Text style={[styles.messageText, { color: isUser ? "#ffffff" : alert ? colors.alertText : colors.text }]}>
           {text}
@@ -72,4 +75,6 @@ const styles = StyleSheet.create({
   alertBubble: { borderWidth: 1 },
   senderLabel: { fontSize: 10, fontWeight: "700", letterSpacing: 1, marginBottom: 4 },
   messageText: { fontSize: 15, lineHeight: 22 },
+  loadingRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  loadingText: { fontSize: 13, fontWeight: "600" },
 });
