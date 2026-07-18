@@ -1,7 +1,8 @@
+import Button from "../components/Button";
 import React, { useState } from "react";
 import {
   View, Text, StyleSheet, SafeAreaView,
-  ScrollView, Pressable, TextInput
+  ScrollView, TextInput
 } from "react-native";
 import { Search, LogOut, AlertTriangle, Users } from "lucide-react-native";
 
@@ -234,15 +235,15 @@ export default function DoctorDashboardScreen({ theme, doctor, navigate, onLogou
                 <Text style={s.alertBubbleTxt}>{alerts.length}</Text>
               </View>
             )}
-            <Pressable onPress={onLogout} style={[s.logoutBtn, { borderColor: c.border }]}>
+            <Button onPress={onLogout} style={[s.logoutBtn, { borderColor: c.border }]}>
               <LogOut size={18} color={c.muted} />
-            </Pressable>
+            </Button>
           </View>
         </View>
 
         {/* ── Emergency alerts banner ── */}
         {emergencyPatients.map(p => (
-          <Pressable
+          <Button
             key={p.id}
             style={[s.emergencyBanner, { backgroundColor: isDark ? "#2d0a12" : "#fff1f2" }]}
             onPress={() => navigate("PatientDetail", { patientId: p.id })}
@@ -259,7 +260,7 @@ export default function DoctorDashboardScreen({ theme, doctor, navigate, onLogou
               </Text>
             </View>
             <Text style={{ color: c.rose, fontSize: 18 }}>›</Text>
-          </Pressable>
+          </Button>
         ))}
 
         {/* ── Unacknowledged alerts ── */}
@@ -273,12 +274,12 @@ export default function DoctorDashboardScreen({ theme, doctor, navigate, onLogou
               <Text style={[s.alertRowMsg, { color: c.muted }]}>{a.message}</Text>
               <Text style={[s.alertRowTime, { color: c.muted }]}>{timeAgo(a.timestamp)}</Text>
             </View>
-            <Pressable
+            <Button
               style={[s.dismissBtn, { borderColor: c.amber }]}
               onPress={() => dismissAlert(a.id)}
             >
               <Text style={[s.dismissTxt, { color: c.amber }]}>Dismiss</Text>
-            </Pressable>
+            </Button>
           </View>
         ))}
 
@@ -321,7 +322,7 @@ export default function DoctorDashboardScreen({ theme, doctor, navigate, onLogou
             const active = filter === f;
             const fColor = f === "All" ? c.purple : getRiskColor(f as RiskLevel);
             return (
-              <Pressable
+              <Button
                 key={f}
                 style={[s.filterPill, {
                   backgroundColor: active ? fColor + "22" : c.card,
@@ -330,7 +331,7 @@ export default function DoctorDashboardScreen({ theme, doctor, navigate, onLogou
                 onPress={() => setFilter(f)}
               >
                 <Text style={[s.filterTxt, { color: active ? fColor : c.muted }]}>{f}</Text>
-              </Pressable>
+              </Button>
             );
           })}
         </ScrollView>
@@ -382,7 +383,7 @@ function PatientQueueCard({
   const isCrit    = patient.riskLevel === "Critical";
 
   return (
-    <Pressable
+    <Button
       style={[s.patientCard, { backgroundColor: c.card, borderColor: isCrit ? riskColor : c.border, borderLeftColor: riskColor, borderLeftWidth: 4 }]}
       onPress={onPress}
     >
@@ -440,7 +441,7 @@ function PatientQueueCard({
           <Text style={[s.arrow, { color: c.muted }]}>›</Text>
         </View>
       )}
-    </Pressable>
+    </Button>
   );
 }
 

@@ -5,15 +5,17 @@
   "scripts": {
     "start": "expo start",
     "web": "expo start --web",
-    "android": "expo start --android",
-    "ios": "expo start --ios"
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-community/datetimepicker": "8.4.4",
     "cors": "^2.8.6",
     "expo": "~54.0.35",
     "expo-asset": "~12.0.13",
+    "expo-blur": "~15.0.8",
     "expo-file-system": "~19.0.23",
     "expo-linking": "~8.0.12",
     "expo-location": "~19.0.8",
@@ -22,10 +24,12 @@
     "express": "^5.2.1",
     "lucide-react-native": "^1.17.0",
     "memoize-one": "^6.0.0",
+    "moti": "^0.30.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.5",
     "react-native-maps": "1.20.1",
+    "react-native-reanimated": "~4.1.1",
     "react-native-svg": "15.12.1",
     "react-native-web": "^0.21.0"
   },

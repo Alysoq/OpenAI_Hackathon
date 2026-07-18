@@ -1,5 +1,6 @@
+import Button from "./src/components/Button";
 import React, { useEffect, useRef, useState } from "react";
-import { Animated, BackHandler, View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Pressable, ScrollView } from "react-native";
+import { Animated, BackHandler, View, Text, StyleSheet, SafeAreaView, ScrollView } from "react-native";
 import HomeScreen from "./src/screens/HomeScreen";
 import VitalsScreen from "./src/screens/VitalsScreen";
 import ProfileScreen from "./src/screens/profilescreen";
@@ -8,6 +9,8 @@ import HospitalsScreen from "./src/screens/HospitalsScreen";
 import EmergencyScreen from "./src/screens/emergencyscreen";
 import LoginScreen from "./src/screens/loginscreen";
 import DoctorWorkspace from "./src/screens/doctor/DoctorWorkspace";
+import HomeBar from "./src/components/HomeBar";
+import { scenarios } from "./src/data/sampleSensorData";
 import { loadProfile } from "./src/storage/profileStorage";
 import { getSharedReports } from "./src/api/maternaAPI";
 import { createAndShareProfileReport } from "./src/utils/profileReport";
@@ -93,10 +96,6 @@ export default function App() {
   }
 
   const dark = theme === "dark";
-  const navBg = dark ? "#0f1117" : "#ffffff";
-  const navBorder = dark ? "#1e2233" : "#e5e7eb";
-  const activeColor = "#22C55E";
-  const inactiveColor = dark ? "#4a4f66" : "#9ca3af";
   const screenBg = dark ? "#05070A" : "#F8FAFC";
 
   // ── LOGIN SCREEN ──────────────────────────────────────────
@@ -147,7 +146,7 @@ export default function App() {
           <Text style={login.chooseLabel}>Who are you?</Text>
 
           {/* Patient login */}
-          <Pressable
+          <Button
             style={[login.loginBtn, { borderColor: "#22C55E", backgroundColor: "#0a1a0f" }]}
             onPress={() => setUserType("patient")}
           >
@@ -157,10 +156,10 @@ export default function App() {
               <Text style={login.loginBtnSub}>Track vitals, get alerts, connect with care</Text>
             </View>
             <Text style={{ color: "#22C55E", fontSize: 20 }}>›</Text>
-          </Pressable>
+          </Button>
 
           {/* Doctor login */}
-          <Pressable
+          <Button
             style={[login.loginBtn, { borderColor: "#15803d", backgroundColor: "#0a1a0f" }]}
             onPress={() => setUserType("doctor")}
           >
@@ -170,7 +169,7 @@ export default function App() {
               <Text style={login.loginBtnSub}>Monitor patients, manage alerts, view dashboard</Text>
             </View>
             <Text style={{ color: "#15803d", fontSize: 20 }}>›</Text>
-          </Pressable>
+          </Button>
           
           <Text style={login.footer}>
             Materna · Hackathon Demo · Arkansas Rural Health
@@ -246,35 +245,13 @@ export default function App() {
         </View>
       </View>
 
-      {/* Bottom nav */}
-      <View style={{ backgroundColor: navBg, borderTopWidth: 1, borderTopColor: navBorder }}>
-        <View style={[styles.nav, { backgroundColor: navBg }]}>
-          {[
-            { label: "Today", icon: "⌂", emergency: false },
-            { label: "Vitals", icon: "♥", emergency: false },
-            { label: "🚨", icon: "🚨", emergency: true },
-            { label: "Hospitals", icon: "🏥", emergency: false },
-            { label: "Profile", icon: "◯", emergency: false },
-          ].map(({ label, icon, emergency }) => {
-            const isActive = activeTab === label;
-            const color = emergency ? "#ff4444" : isActive ? activeColor : inactiveColor;
-            return (
-              <TouchableOpacity
-                key={label}
-                style={[styles.navItem, emergency && styles.emergencyNavItem]}
-                onPress={() => emergency ? setShowEmergency(true) : setActiveTab(label)}
-              >
-                <Text style={[styles.navIcon, { color }, emergency && styles.emergencyIcon]}>
-                  {icon}
-                </Text>
-                {!emergency && (
-                  <Text style={[styles.navLabel, { color }]}>{label}</Text>
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </View>
+      <HomeBar
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        onEmergencyPress={() => setShowEmergency(true)}
+        theme={theme}
+        sensorData={scenarios[activeScenario]}
+      />
 
     </View>
   );
@@ -389,16 +366,16 @@ function DoctorDashboard({ theme, onLogout }) {
             <Text style={[doc.docName, { color: c.text }]}>Dr. Aisha Patel</Text>
             <Text style={[doc.docSub, { color: c.muted }]}>OB-GYN · Delta Memorial Hospital</Text>
           </View>
-          <TouchableOpacity
+          <Button
             onPress={onLogout}
             style={[doc.logoutBtn, { borderColor: c.border }]}
           >
             <Text style={{ color: c.muted, fontSize: 12, fontWeight: "600" }}>← Logout</Text>
-          </TouchableOpacity>
+          </Button>
         </View>
 
         {sharedProfile && (
-          <TouchableOpacity
+          <Button
             style={[
               doc.profileAccessCard,
               { backgroundColor: c.card, borderColor: c.purple },
@@ -476,14 +453,14 @@ function DoctorDashboard({ theme, onLogout }) {
                         </View>
                       ))}
                     </View>
-                    <TouchableOpacity
+                    <Button
                       style={[doc.doctorPdfButton, { borderColor: c.purple }]}
                       onPress={shareDoctorCopy}
                     >
                       <Text style={[doc.doctorPdfButtonText, { color: c.purple }]}>
                         Open or share PDF copy
                       </Text>
-                    </TouchableOpacity>
+                    </Button>
                   </>
                 )}
                 <Text style={[doc.sharedProfileUpdated, { color: c.muted }]}>
@@ -495,7 +472,7 @@ function DoctorDashboard({ theme, onLogout }) {
                 </Text>
               </View>
             )}
-          </TouchableOpacity>
+          </Button>
         )}
 
         {/* Emergency banner */}
@@ -506,12 +483,12 @@ function DoctorDashboard({ theme, onLogout }) {
               Week {p.week} · HR {p.hr} · BP {p.bp} · SpO2 {p.spo2}%
             </Text>
             <View style={doc.emergencyBtns}>
-              <TouchableOpacity style={[doc.emergencyBtn, { backgroundColor: "#e11d48" }]}>
+              <Button style={[doc.emergencyBtn, { backgroundColor: "#e11d48" }]}>
                 <Text style={doc.emergencyBtnText}>📞 Call Patient</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[doc.emergencyBtn, { backgroundColor: "#7f1d1d" }]}>
+              </Button>
+              <Button style={[doc.emergencyBtn, { backgroundColor: "#7f1d1d" }]}>
                 <Text style={doc.emergencyBtnText}>🚑 Dispatch Ambulance</Text>
-              </TouchableOpacity>
+              </Button>
             </View>
           </View>
         ))}
@@ -537,7 +514,7 @@ function DoctorDashboard({ theme, onLogout }) {
         {/* Filter pills */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ paddingLeft: 12, marginBottom: 8 }}>
           {["All", "Critical", "High", "Moderate", "Stable"].map(f => (
-            <TouchableOpacity
+            <Button
               key={f}
               style={[doc.filterPill, {
                 backgroundColor: filter === f ? c.purple + "22" : c.card,
@@ -546,7 +523,7 @@ function DoctorDashboard({ theme, onLogout }) {
               onPress={() => setFilter(f)}
             >
               <Text style={[doc.filterTxt, { color: filter === f ? c.purple : c.muted }]}>{f}</Text>
-            </TouchableOpacity>
+            </Button>
           ))}
         </ScrollView>
 
@@ -613,15 +590,15 @@ function DoctorDashboard({ theme, onLogout }) {
 
             {/* Action buttons */}
             <View style={[doc.actionRow, { borderTopColor: c.border }]}>
-              <TouchableOpacity style={[doc.actionBtn, { backgroundColor: c.purple }]}>
+              <Button style={[doc.actionBtn, { backgroundColor: c.purple }]}>
                 <Text style={doc.actionBtnText}>📞 Call</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[doc.actionBtn, { backgroundColor: c.card, borderWidth: 1, borderColor: c.border }]}>
+              </Button>
+              <Button style={[doc.actionBtn, { backgroundColor: c.card, borderWidth: 1, borderColor: c.border }]}>
                 <Text style={[doc.actionBtnText, { color: c.text }]}>💬 Message</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[doc.actionBtn, { backgroundColor: c.card, borderWidth: 1, borderColor: c.border }]}>
+              </Button>
+              <Button style={[doc.actionBtn, { backgroundColor: c.card, borderWidth: 1, borderColor: c.border }]}>
                 <Text style={[doc.actionBtnText, { color: c.text }]}>📋 Notes</Text>
-              </TouchableOpacity>
+              </Button>
             </View>
           </View>
         ))}
@@ -631,15 +608,6 @@ function DoctorDashboard({ theme, onLogout }) {
 }
 
 // ── Styles ─────────────────────────────────────────────────
-
-const styles = StyleSheet.create({
-  nav: { flexDirection: "row", paddingBottom: 24, paddingTop: 10, maxWidth: 430, width: "100%", alignSelf: "center", alignItems: "center" },
-  navItem: { flex: 1, alignItems: "center", gap: 4 },
-  emergencyNavItem: { marginTop: -16 },
-  navIcon: { fontSize: 22 },
-  emergencyIcon: { fontSize: 28 },
-  navLabel: { fontSize: 11, fontWeight: "600", letterSpacing: 0.5 },
-});
 
 const welcome = StyleSheet.create({
   container: {

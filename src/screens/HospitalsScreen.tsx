@@ -1,3 +1,4 @@
+import Button from "../components/Button";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -7,7 +8,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from "react-native";
 import * as Location from "expo-location";
@@ -338,14 +338,14 @@ export default function HospitalsScreen({ theme, riskLevel }: Props) {
             Obstetric Care Finder
           </Text>
         </View>
-        <TouchableOpacity
+        <Button
           style={[styles.locationButton, { borderColor: c.accent }]}
           onPress={requestLocation}
         >
           <Text style={[styles.locationButtonText, { color: c.accent }]}>
             Use my location
           </Text>
-        </TouchableOpacity>
+        </Button>
       </View>
 
       <View style={[styles.locationRow, { backgroundColor: c.card }]}>
@@ -367,43 +367,43 @@ export default function HospitalsScreen({ theme, riskLevel }: Props) {
               : ""}.
           </Text>
           <View style={styles.emergencyRouteActions}>
-            <TouchableOpacity
+            <Button
               style={styles.call911Button}
               onPress={() => Linking.openURL("tel:911")}
             >
               <Text style={styles.call911Text}>Call 911</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Button>
+            <Button
               style={styles.routeNowButton}
               onPress={() => handleDirections(recommendedHospital)}
             >
               <Text style={styles.routeNowText}>Open route</Text>
-            </TouchableOpacity>
+            </Button>
           </View>
         </View>
       )}
 
       <View style={[styles.tabRow, { backgroundColor: c.card, borderBottomColor: c.cardBorder }]}>
-        <TouchableOpacity
+        <Button
           style={[styles.tab, selectedTab === "map" && styles.activeTab, selectedTab === "map" && { borderBottomColor: c.accent }]}
           onPress={() => setSelectedTab("map")}
         >
           <Text style={[styles.tabText, { color: selectedTab === "map" ? c.accent : c.textMuted }]}>
             Live Map
           </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </Button>
+        <Button
           style={[styles.tab, selectedTab === "list" && styles.activeTab, selectedTab === "list" && { borderBottomColor: c.accent }]}
           onPress={() => setSelectedTab("list")}
         >
           <Text style={[styles.tabText, { color: selectedTab === "list" ? c.accent : c.textMuted }]}>
             Hospital List
           </Text>
-        </TouchableOpacity>
+        </Button>
       </View>
 
       <View style={[styles.countyPanel, { backgroundColor: c.card, borderColor: c.cardBorder }]}>
-        <TouchableOpacity
+        <Button
           style={styles.countySelector}
           onPress={() => {
             setCountyMenuOpen((open) => !open);
@@ -417,7 +417,7 @@ export default function HospitalsScreen({ theme, riskLevel }: Props) {
             </Text>
           </View>
           <Text style={[styles.chevron, { color: c.accent }]}>{countyMenuOpen ? "Up" : "Select"}</Text>
-        </TouchableOpacity>
+        </Button>
 
         {countyMenuOpen && (
           <View style={[styles.countyOptions, { borderTopColor: c.cardBorder }]}>
@@ -562,14 +562,14 @@ export default function HospitalsScreen({ theme, riskLevel }: Props) {
               </View>
 
               <View style={styles.mapActionRow}>
-                <TouchableOpacity
+                <Button
                   accessibilityLabel={`Call ${selectedHospital.name}`}
                   style={[styles.mapIconButton, { backgroundColor: c.accent }]}
                   onPress={() => handleCall(selectedHospital.phone)}
                 >
                   <Phone size={18} color="#ffffff" />
-                </TouchableOpacity>
-                <TouchableOpacity
+                </Button>
+                <Button
                   accessibilityLabel={`Directions to ${selectedHospital.name}`}
                   style={[
                     styles.mapIconButton,
@@ -578,8 +578,8 @@ export default function HospitalsScreen({ theme, riskLevel }: Props) {
                   onPress={() => handleDirections(selectedHospital)}
                 >
                   <Navigation size={18} color={c.text} />
-                </TouchableOpacity>
-                <TouchableOpacity
+                </Button>
+                <Button
                   style={[
                     styles.linkFacilityButton,
                     { borderColor: c.accent },
@@ -591,12 +591,12 @@ export default function HospitalsScreen({ theme, riskLevel }: Props) {
                       ? "Linked hospital"
                       : "Link hospital"}
                   </Text>
-                </TouchableOpacity>
+                </Button>
               </View>
             </View>
           )}
           {locationStatus === "denied" && (
-            <TouchableOpacity
+            <Button
               style={[styles.permissionNotice, { backgroundColor: c.card, borderColor: c.accent }]}
               onPress={requestLocation}
             >
@@ -604,7 +604,7 @@ export default function HospitalsScreen({ theme, riskLevel }: Props) {
               <Text style={[styles.permissionText, { color: c.textMuted }]}>
                 Tap to allow location and center the map on nearby care.
               </Text>
-            </TouchableOpacity>
+            </Button>
           )}
         </View>
       ) : (
@@ -651,26 +651,26 @@ export default function HospitalsScreen({ theme, riskLevel }: Props) {
                   </Text>
 
                   <View style={styles.buttonRow}>
-                    <TouchableOpacity
+                    <Button
                       style={[styles.actionButton, { backgroundColor: c.accent }]}
                       onPress={() => handleCall(hospital.phone)}
                     >
                       <Text style={styles.primaryButtonText}>Call</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
+                    </Button>
+                    <Button
                       style={[styles.actionButton, { backgroundColor: c.cardBorder }]}
                       onPress={() => handleDirections(hospital)}
                     >
                       <Text style={[styles.secondaryButtonText, { color: c.text }]}>Directions</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
+                    </Button>
+                    <Button
                       style={[styles.actionButton, { borderColor: c.accent, borderWidth: 1 }]}
                       onPress={() => setLinkedId(hospital.id)}
                     >
                       <Text style={[styles.secondaryButtonText, { color: c.accent }]}>
                         {linked ? "Linked" : "Link"}
                       </Text>
-                    </TouchableOpacity>
+                    </Button>
                   </View>
                 </View>
               );
@@ -695,7 +695,7 @@ function CountyOption({
 }) {
   const selected = selectedCounty === county;
   return (
-    <TouchableOpacity
+    <Button
       style={[
         styles.countyOption,
         selected && { backgroundColor: `${c.accent}18` },
@@ -705,7 +705,7 @@ function CountyOption({
       <Text style={{ color: selected ? c.accent : c.text }}>
         {county === "All" ? "All nearby counties" : `${county} County`}
       </Text>
-    </TouchableOpacity>
+    </Button>
   );
 }
 
@@ -724,7 +724,7 @@ function AvailabilityBox({
   const color = unavailable ? "#e11d48" : value === "Limited" ? "#d97706" : "#22C55E";
 
   return (
-    <TouchableOpacity
+    <Button
       style={[styles.availabilityBox, { borderColor: c.cardBorder }]}
       onPress={onPress}
       activeOpacity={0.75}
@@ -732,7 +732,7 @@ function AvailabilityBox({
       <Text style={[styles.availabilityLabel, { color: c.textMuted }]}>{label}</Text>
       <Text style={[styles.availabilityValue, { color }]}>{value}</Text>
       <Text style={[styles.availabilityLink, { color: c.textMuted }]}>View details</Text>
-    </TouchableOpacity>
+    </Button>
   );
 }
 
@@ -764,9 +764,9 @@ function ResourceDetails({
 
   return (
     <ScrollView contentContainerStyle={styles.resourceScroll}>
-      <TouchableOpacity style={styles.resourceBack} onPress={onBack}>
+      <Button style={styles.resourceBack} onPress={onBack}>
         <Text style={[styles.resourceBackText, { color: c.accent }]}>Back to care finder</Text>
-      </TouchableOpacity>
+      </Button>
 
       <Text style={[styles.resourceTitle, { color: c.text }]}>{title}</Text>
       <Text style={[styles.resourceSubtitle, { color: c.textMuted }]}>
@@ -812,18 +812,18 @@ function ResourceDetails({
                 : "Emergency department available"}
             </Text>
             <View style={styles.buttonRow}>
-              <TouchableOpacity
+              <Button
                 style={[styles.actionButton, { backgroundColor: c.accent }]}
                 onPress={() => onCall(hospital.phone)}
               >
                 <Text style={styles.primaryButtonText}>Call</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </Button>
+              <Button
                 style={[styles.actionButton, { backgroundColor: c.cardBorder }]}
                 onPress={() => onDirections(hospital)}
               >
                 <Text style={[styles.secondaryButtonText, { color: c.text }]}>Directions</Text>
-              </TouchableOpacity>
+              </Button>
             </View>
           </View>
         ))}
