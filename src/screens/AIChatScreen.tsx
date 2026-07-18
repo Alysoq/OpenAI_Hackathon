@@ -14,6 +14,7 @@ import {
   Image,
 } from "react-native";
 import { Audio } from "expo-av";
+import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { analyzeImage, askAssistant, shareProfileReport, transcribeAudio } from "../api/maternaAPI";
 import ChatBubble from "../components/ChatBubble";
@@ -175,26 +176,22 @@ export default function AIChatScreen({
     }
   }
 
-  async function takePhoto() {
-    if (isLoading) return;
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (permission.status !== "granted") {
-      Alert.alert("Camera access needed", "Allow camera access to send a photo to Materna.");
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.7,
-    });
-    if (result.canceled || !result.assets?.[0]?.uri) return;
-    const imageUri = result.assets[0].uri;
+  async function handleSelectedImage(
+    imageUri: string,
+    label: string,
+    fileName?: string | null,
+    mimeType?: string | null,
+  ) {
     setMessages((current) => [...current, {
-      id: Date.now().toString(), from: "user", text: "Photo shared", type: "image", imageUri,
+      id: Date.now().toString(), from: "user", text: label, type: "image", imageUri,
     }]);
     setIsLoading(true);
     setLoadingMessage("Analyzing your photo...");
     try {
-      const analysis = await analyzeImage(patientId, imageUri, currentSensors, riskLevel);
+      const analysis = await analyzeImage(patientId, imageUri, currentSensors, riskLevel, {
+        name: fileName,
+        type: mimeType,
+      });
       if (!analysis?.response) throw new Error("Image service unavailable");
       setMessages((current) => [...current, {
         id: (Date.now() + 1).toString(), from: "materna",
@@ -210,6 +207,54 @@ export default function AIChatScreen({
       setLoadingMessage("");
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
     }
+  }
+
+  async function takePhoto() {
+    if (isLoading) return;
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (permission.status !== "granted") {
+      Alert.alert("Camera access needed", "Allow camera access to send a photo to Materna.");
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.7 });
+    const asset = result.canceled ? null : result.assets?.[0];
+    if (!asset?.uri) return;
+    await handleSelectedImage(asset.uri, "Photo shared", asset.fileName, asset.mimeType);
+  }
+
+  async function chooseFromPhotos() {
+    if (isLoading) return;
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permission.status !== "granted") {
+      Alert.alert("Photo access needed", "Allow photo access to choose an image for Materna.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.7 });
+    const asset = result.canceled ? null : result.assets?.[0];
+    if (!asset?.uri) return;
+    await handleSelectedImage(asset.uri, "Photo selected", asset.fileName, asset.mimeType);
+  }
+
+  async function chooseFromFiles() {
+    if (isLoading) return;
+    const result = await DocumentPicker.getDocumentAsync({ type: "image/*", copyToCacheDirectory: true });
+    const asset = result.canceled ? null : result.assets?.[0];
+    if (!asset?.uri) return;
+    if (asset.mimeType && !asset.mimeType.startsWith("image/")) {
+      Alert.alert("Unsupported file", "Please choose an image file to send to Materna.");
+      return;
+    }
+    await handleSelectedImage(asset.uri, `Image file shared: ${asset.name}`, asset.name, asset.mimeType);
+  }
+
+  function openImageSourcePicker() {
+    if (isLoading || isRecording) return;
+    Alert.alert("Add an image", "Choose where to get an image.", [
+      { text: "Take photo", onPress: takePhoto },
+      { text: "Choose from Photos", onPress: chooseFromPhotos },
+      { text: "Choose from Files", onPress: chooseFromFiles },
+      { text: "Cancel", style: "cancel" },
+    ]);
   }
 
   return (
@@ -294,13 +339,13 @@ export default function AIChatScreen({
           onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120)}
           multiline
         />
-        {/* Camera flow is retained above but intentionally hidden for this voice-only demo. */}
+        {/* Image capture and picker flows are retained but hidden for this voice-only demo. */}
         {false && (
           <TouchableOpacity
             style={[styles.mediaBtn, { backgroundColor: c.inputBg, borderColor: c.inputBorder }]}
-            onPress={takePhoto}
+            onPress={openImageSourcePicker}
             disabled={isLoading || isRecording}
-            accessibilityLabel="Take photo"
+            accessibilityLabel="Add a photo or image file"
           >
             <Text style={styles.mediaBtnText}>📷</Text>
           </TouchableOpacity>

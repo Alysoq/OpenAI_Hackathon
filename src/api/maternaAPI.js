@@ -179,7 +179,7 @@ export const transcribeAudio = async (patientId, audioUri, currentSensors, riskL
   }
 };
 
-export const analyzeImage = async (patientId, imageUri, currentSensors, riskLevel) => {
+export const analyzeImage = async (patientId, imageUri, currentSensors, riskLevel, file = {}) => {
   const url = `${MATERNA_URL}/analyze-image`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 120000);
@@ -188,8 +188,8 @@ export const analyzeImage = async (patientId, imageUri, currentSensors, riskLeve
     const formData = new FormData();
     formData.append("image", {
       uri: imageUri,
-      name: "materna-photo.jpg",
-      type: "image/jpeg",
+      name: file.name || "materna-photo.jpg",
+      type: file.type || "image/jpeg",
     });
     appendMultimodalContext(formData, patientId, currentSensors, riskLevel);
     const response = await fetch(url, {
