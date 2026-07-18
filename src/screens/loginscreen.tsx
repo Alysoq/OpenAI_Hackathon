@@ -1,8 +1,9 @@
+import Button from "../components/Button";
 
 import React, { useState } from "react";
 import {
   View, Text, StyleSheet, SafeAreaView,
-  TextInput, Pressable, KeyboardAvoidingView, Platform
+  TextInput, KeyboardAvoidingView, Platform
 } from "react-native";
 import { Heart } from "lucide-react-native";
 
@@ -73,9 +74,9 @@ export default function LoginScreen({ theme, onLogin }) {
 
           {error ? <Text style={s.error}>{error}</Text> : null}
 
-          <Pressable style={[s.btn, { backgroundColor: c.green }]} onPress={handleLogin}>
+          <Button style={[s.btn, { backgroundColor: c.green }]} onPress={handleLogin}>
             <Text style={s.btnText}>Continue →</Text>
-          </Pressable>
+          </Button>
 
           <Text style={[s.hint, { color: c.muted }]}>
             Demo: enter anything to proceed

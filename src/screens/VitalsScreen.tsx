@@ -1,9 +1,9 @@
+import Button from "../components/Button";
 import React, { useState } from "react";
 import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
   StyleSheet,
   Platform,
 } from "react-native";
@@ -111,7 +111,7 @@ export default function VitalsScreen({ theme }: Props) {
 
         {/* Buttons */}
         <View style={styles.buttonRow}>
-          <TouchableOpacity
+          <Button
             style={[styles.actionBtn, { backgroundColor: c.accent }]}
             onPress={handleRefresh}
             activeOpacity={0.8}
@@ -119,9 +119,9 @@ export default function VitalsScreen({ theme }: Props) {
             <Text style={styles.actionBtnText}>
               {refreshed ? "✓ Refreshed" : "↻  Refresh readings"}
             </Text>
-          </TouchableOpacity>
+          </Button>
 
-          <TouchableOpacity
+          <Button
             style={[styles.actionBtn, { backgroundColor: c.secondaryBtn }]}
             onPress={handlePair}
             activeOpacity={0.8}
@@ -129,7 +129,7 @@ export default function VitalsScreen({ theme }: Props) {
             <Text style={[styles.actionBtnText, { color: c.text }]}>
               {pairing ? "Pairing..." : paired ? "Re-pair bracelet" : "Pair bracelet"}
             </Text>
-          </TouchableOpacity>
+          </Button>
         </View>
       </View>
 

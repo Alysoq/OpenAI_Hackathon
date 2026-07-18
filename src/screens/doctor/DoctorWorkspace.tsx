@@ -1,3 +1,4 @@
+import Button from "../../components/Button";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -14,7 +15,6 @@ import {
 import {
   ArrowLeft,
   FileText,
-  Home,
   Hospital,
   Mail,
   MapPin,
@@ -22,8 +22,8 @@ import {
   Phone,
   Stethoscope,
   UserRound,
-  Users,
 } from "lucide-react-native";
+import DoctorHomeBar from "../../components/DoctorHomeBar";
 import {
   acknowledgeEmergencyAlert,
   getEmergencyAlerts,
@@ -459,12 +459,12 @@ export default function DoctorWorkspace({ theme, onLogout }: Props) {
                 : "Just now"}
             </Text>
           </View>
-          <Pressable
+          <Button
             style={styles.acknowledgeButton}
             onPress={() => handleAcknowledgeEmergency(emergency.id)}
           >
             <Text style={styles.acknowledgeText}>Acknowledge</Text>
-          </Pressable>
+          </Button>
         </View>
       ))}
 
@@ -495,7 +495,7 @@ export default function DoctorWorkspace({ theme, onLogout }: Props) {
       </View>
 
       {!selectedPatient && (
-        <DoctorBottomNav view={view} setView={setView} c={c} />
+        <DoctorHomeBar activeTab={view} onTabChange={setView} theme={theme} />
       )}
     </SafeAreaView>
   );
@@ -515,9 +515,9 @@ function DoctorHeader({ c, onLogout }: { c: any; onLogout: () => void }) {
           OB-GYN · Delta Memorial Hospital
         </Text>
       </View>
-      <Pressable style={[styles.logout, { borderColor: c.border }]} onPress={onLogout}>
+      <Button style={[styles.logout, { borderColor: c.border }]} onPress={onLogout}>
         <Text style={[styles.logoutText, { color: c.muted }]}>Logout</Text>
-      </Pressable>
+      </Button>
     </View>
   );
 }
@@ -552,7 +552,7 @@ function HomeView({
       </View>
 
       {critical.map((patient) => (
-        <Pressable
+        <Button
           key={patient.id}
           style={styles.alertCard}
           onPress={() => openPatient(patient)}
@@ -564,7 +564,7 @@ function HomeView({
           <Text style={styles.alertBody}>
             {patient.factor} · BP {patient.vitals.bloodPressure} · SpO2 {patient.vitals.oxygen}%
           </Text>
-        </Pressable>
+        </Button>
       ))}
 
       <SectionTitle title="Priority patients" c={c} />
@@ -650,10 +650,10 @@ function PatientDetail({
 }) {
   return (
     <ScrollView contentContainerStyle={styles.scroll}>
-      <Pressable style={styles.backRow} onPress={onBack}>
+      <Button style={styles.backRow} onPress={onBack}>
         <ArrowLeft size={18} color={c.purple} />
         <Text style={[styles.backText, { color: c.purple }]}>Patients</Text>
-      </Pressable>
+      </Button>
 
       <View style={styles.patientDetailHeader}>
         <View style={[styles.largeAvatar, { borderColor: patient.riskColor }]}>
@@ -796,9 +796,9 @@ function DoctorProfileView({ c }: { c: any }) {
         {field("Email", "email")}
         {field("License", "license")}
       </View>
-      <Pressable style={styles.editButton} onPress={() => setEditing((value) => !value)}>
+      <Button style={styles.editButton} onPress={() => setEditing((value) => !value)}>
         <Text style={styles.editButtonText}>{editing ? "Save profile" : "Edit profile"}</Text>
-      </Pressable>
+      </Button>
     </ScrollView>
   );
 }
@@ -846,9 +846,9 @@ function ReportRow({ report, c, expanded = false }: { report: any; c: any; expan
           </Text>
         </View>
       )}
-      <Pressable style={[styles.reportButton, { borderColor: c.purple }]} onPress={openPdf}>
+      <Button style={[styles.reportButton, { borderColor: c.purple }]} onPress={openPdf}>
         <Text style={[styles.reportButtonText, { color: c.purple }]}>Open PDF summary</Text>
-      </Pressable>
+      </Button>
     </View>
   );
 }
@@ -938,7 +938,7 @@ function ConfidenceTrend({ evaluation, c }: { evaluation?: PatientEvaluation; c:
 
 function PatientRow({ patient, c, onPress }: { patient: Patient; c: any; onPress: () => void }) {
   return (
-    <Pressable style={[styles.patientCard, { backgroundColor: c.card, borderColor: c.border, borderLeftColor: patient.riskColor }]} onPress={onPress}>
+    <Button style={[styles.patientCard, { backgroundColor: c.card, borderColor: c.border, borderLeftColor: patient.riskColor }]} onPress={onPress}>
       <View style={[styles.avatar, { borderColor: patient.riskColor }]}>
         <Text style={[styles.avatarText, { color: patient.riskColor }]}>
           {patient.name.split(" ").map((part) => part[0]).join("")}
@@ -951,30 +951,7 @@ function PatientRow({ patient, c, onPress }: { patient: Patient; c: any; onPress
         </Text>
       </View>
       <Text style={[styles.riskText, { color: patient.riskColor }]}>{patient.risk}</Text>
-    </Pressable>
-  );
-}
-
-function DoctorBottomNav({ view, setView, c }: { view: DoctorView; setView: (view: DoctorView) => void; c: any }) {
-  const items = [
-    { key: "home" as const, label: "Home", icon: Home },
-    { key: "patients" as const, label: "Patients", icon: Users },
-    { key: "reports" as const, label: "Reports", icon: FileText },
-    { key: "profile" as const, label: "Profile", icon: UserRound },
-  ];
-  return (
-    <View style={[styles.bottomNav, { backgroundColor: c.card, borderTopColor: c.border }]}>
-      {items.map((item) => {
-        const active = view === item.key;
-        const Icon = item.icon;
-        return (
-          <Pressable key={item.key} style={styles.navItem} onPress={() => setView(item.key)}>
-            <Icon size={21} color={active ? c.purple : c.muted} />
-            <Text style={[styles.navLabel, { color: active ? c.purple : c.muted }]}>{item.label}</Text>
-          </Pressable>
-        );
-      })}
-    </View>
+    </Button>
   );
 }
 
@@ -1001,10 +978,10 @@ function EmptyState({ text, c }: { text: string; c: any }) {
 
 function QuickAction({ icon: Icon, label, color, onPress }: any) {
   return (
-    <Pressable style={[styles.quickAction, { borderColor: color }]} onPress={onPress}>
+    <Button style={[styles.quickAction, { borderColor: color }]} onPress={onPress}>
       <Icon size={18} color={color} />
       <Text style={[styles.quickActionText, { color }]}>{label}</Text>
-    </Pressable>
+    </Button>
   );
 }
 
@@ -1066,7 +1043,7 @@ const styles = StyleSheet.create({
   doctorMeta: { fontSize: 11, marginTop: 2 },
   logout: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 11, paddingVertical: 7, alignSelf: "center" },
   logoutText: { fontSize: 11, fontWeight: "700" },
-  scroll: { padding: 14, paddingBottom: 28 },
+  scroll: { padding: 14, paddingBottom: 122 },
   pageTitle: { fontSize: 22, fontWeight: "900" },
   pageSubtitle: { fontSize: 12, marginTop: 3, marginBottom: 16 },
   statRow: { flexDirection: "row", gap: 8 },
@@ -1147,13 +1124,4 @@ const styles = StyleSheet.create({
   profileInput: { borderWidth: 1, borderRadius: 7, paddingHorizontal: 10, paddingVertical: 8, marginTop: 4 },
   editButton: { backgroundColor: "#22C55E", borderRadius: 8, alignItems: "center", paddingVertical: 12 },
   editButtonText: { color: "#ffffff", fontSize: 12, fontWeight: "800" },
-  bottomNav: {
-    flexDirection: "row",
-    borderTopWidth: 1,
-    paddingTop: 10,
-    paddingBottom: 30,
-    minHeight: 78,
-  },
-  navItem: { flex: 1, alignItems: "center", gap: 4 },
-  navLabel: { fontSize: 9, fontWeight: "700" },
 });

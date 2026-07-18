@@ -1,6 +1,7 @@
+import Button from "../components/Button";
 import React from "react";
 import {
-  View, Text, StyleSheet, SafeAreaView, Pressable, Platform
+  View, Text, StyleSheet, SafeAreaView, Platform
 } from "react-native";
 import { ArrowLeft, Map } from "lucide-react-native";
 
@@ -47,9 +48,9 @@ export default function HospitalDashboardScreen({ theme, navigate }) {
     return (
       <SafeAreaView style={[s.safe, { backgroundColor: c.bg }]}>
         <View style={[s.header, { borderBottomColor: c.border }]}>
-          <Pressable onPress={() => navigate("Hospitals")}>
+          <Button onPress={() => navigate("Hospitals")}>
             <ArrowLeft size={24} color={c.text} />
-          </Pressable>
+          </Button>
           <Text style={[s.title, { color: c.text }]}>Command Dashboard</Text>
           <Map size={22} color={c.green} />
         </View>
@@ -76,9 +77,9 @@ export default function HospitalDashboardScreen({ theme, navigate }) {
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: c.bg }]}>
       <View style={[s.header, { borderBottomColor: c.border }]}>
-        <Pressable onPress={() => navigate("Hospitals")}>
+        <Button onPress={() => navigate("Hospitals")}>
           <ArrowLeft size={24} color={c.text} />
-        </Pressable>
+        </Button>
         <Text style={[s.title, { color: c.text }]}>Command Dashboard</Text>
         <Map size={22} color={c.green} />
       </View>
@@ -99,9 +100,9 @@ export default function HospitalDashboardScreen({ theme, navigate }) {
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: c.bg }]}>
       <View style={[s.header, { borderBottomColor: c.border }]}>
-        <Pressable onPress={() => navigate("Hospitals")}>
+        <Button onPress={() => navigate("Hospitals")}>
           <ArrowLeft size={24} color={c.text} />
-        </Pressable>
+        </Button>
         <Text style={[s.title, { color: c.text }]}>Command Dashboard</Text>
         <Map size={22} color={c.green} />
       </View>
@@ -145,12 +146,12 @@ export default function HospitalDashboardScreen({ theme, navigate }) {
           </Text>
         </View>
 
-        <Pressable
+        <Button
           style={[s.webBtn, { backgroundColor: "#19231E", borderColor: c.green }]}
           onPress={() => navigate("Hospitals")}
         >
           <Text style={{ color: c.green, fontWeight: "700" }}>← Back to Hospital List</Text>
-        </Pressable>
+        </Button>
       </View>
     </SafeAreaView>
   );

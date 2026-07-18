@@ -1,3 +1,4 @@
+import Button from "../components/Button";
 import React, { useState, useRef } from "react";
 import {
   View,
@@ -15,6 +16,7 @@ import {
 import { Audio } from "expo-av";
 import * as ImagePicker from "expo-image-picker";
 import { analyzeImage, askAssistant, shareProfileReport, transcribeAudio } from "../api/maternaAPI";
+import ChatBubble from "../components/ChatBubble";
 import {
   loadChatRiskSignals,
   recordChatRiskSignal,
@@ -206,9 +208,9 @@ export default function AIChatScreen({
         keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
     >
       <View style={[styles.header, { borderBottomColor: c.divider }]}>
-        <TouchableOpacity onPress={onClose} style={styles.backBtn}>
+        <Button onPress={onClose} style={styles.backBtn}>
           <Text style={[styles.backText, { color: c.accent }]}>← Back</Text>
-        </TouchableOpacity>
+        </Button>
         <Text style={[styles.headerTitle, { color: c.accent }]}>Ask Materna</Text>
         <View style={{ width: 60 }} />
       </View>
@@ -219,17 +221,8 @@ export default function AIChatScreen({
         keyboardShouldPersistTaps="handled"
       >
         {messages.map((msg) => (
-          <View
-            key={msg.id}
-            style={[
-              styles.bubble,
-              msg.from === "user"
-                ? [styles.userBubble, { backgroundColor: c.accent }]
-                : msg.alert
-                ? [styles.botBubble, { backgroundColor: c.alertBg, borderColor: c.alertBorder, borderWidth: 1 }]
-                : [styles.botBubble, { backgroundColor: c.botBubble }],
-            ]}
-          >
+          msg.type === "voice" || msg.type === "image" ? (
+          <View key={msg.id} style={[styles.bubble, styles.userBubble, { backgroundColor: c.accent }]}>
             {msg.from === "materna" && (
               <Text style={[styles.senderLabel, { color: msg.alert ? c.alertText : c.textMuted }]}>
                 {msg.alert ? "⚠️ Materna Alert" : "Materna"}
@@ -253,20 +246,18 @@ export default function AIChatScreen({
               {msg.text}
             </Text>
           </View>
+          ) : (
+          <ChatBubble
+            key={msg.id}
+            from={msg.from}
+            text={msg.text}
+            alert={msg.alert}
+            colors={c}
+          />
+          )
         ))}
         {isLoading && (
-          <View
-            style={[
-              styles.bubble,
-              styles.botBubble,
-              { backgroundColor: c.botBubble },
-            ]}
-          >
-            <Text style={[styles.senderLabel, { color: c.textMuted }]}>
-              Materna
-            </Text>
-            <ActivityIndicator size="small" color={c.accent} />
-          </View>
+          <ChatBubble from="materna" loading colors={c} />
         )}
       </ScrollView>
 
@@ -304,7 +295,7 @@ export default function AIChatScreen({
         >
           <Text style={styles.mediaBtnText}>{isRecording ? "⏺" : "🎙"}</Text>
         </TouchableOpacity>
-        <TouchableOpacity
+        <Button
           style={[
             styles.sendBtn,
             {
@@ -316,7 +307,7 @@ export default function AIChatScreen({
           disabled={!input.trim() || isLoading}
         >
           <Text style={styles.sendBtnText}>↑</Text>
-        </TouchableOpacity>
+        </Button>
       </View>
     </KeyboardAvoidingView>
   );

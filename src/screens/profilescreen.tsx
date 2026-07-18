@@ -1,20 +1,19 @@
+import Button from "../components/Button";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
-  Modal,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from "react-native";
 import { FileText, Save } from "lucide-react-native";
+import DateOfBirthPicker from "../components/DateOfBirthPicker";
+import ToggleButton from "../components/ToggleButton";
 import {
   EMPTY_PROFILE,
   ProfileData,
@@ -188,7 +187,7 @@ export default function ProfileScreen({ theme }: Props) {
         <DateOfBirthPicker
           value={profile.dateOfBirth}
           onChange={(value) => update("dateOfBirth", value)}
-          c={c}
+          colors={c}
         />
         <Field label="County *" value={profile.county} onChangeText={(value) => update("county", value)} placeholder="e.g. Desha" c={c} />
 
@@ -224,18 +223,19 @@ export default function ProfileScreen({ theme }: Props) {
               Allows the doctor dashboard in this demo to view your saved profile.
             </Text>
           </View>
-          <Switch
-            value={profile.shareWithDoctor}
-            onValueChange={(value) => update("shareWithDoctor", value)}
-            trackColor={{ false: c.switchTrackOff, true: c.accent }}
-            thumbColor="#ffffff"
+          <ToggleButton
+            isActive={profile.shareWithDoctor}
+            onPress={() => update("shareWithDoctor", !profile.shareWithDoctor)}
+            accessibilityLabel="Share with linked doctor"
+            activeTrackColor={c.accent}
+            inactiveTrackColor={c.switchTrackOff}
           />
         </View>
 
-        <TouchableOpacity style={[styles.saveButton, { backgroundColor: c.accent }]} onPress={handleSave}>
+        <Button style={[styles.saveButton, { backgroundColor: c.accent }]} onPress={handleSave}>
           <Save size={18} color="#ffffff" />
           <Text style={styles.saveButtonText}>{saved ? "Profile saved" : "Save changes"}</Text>
-        </TouchableOpacity>
+        </Button>
 
         {reportStatus ? (
           <Text
@@ -252,7 +252,7 @@ export default function ProfileScreen({ theme }: Props) {
           </Text>
         ) : null}
 
-        <TouchableOpacity
+        <Button
           style={[styles.reportButton, { borderColor: c.accent }]}
           onPress={handleReport}
           disabled={generatingReport}
@@ -261,7 +261,7 @@ export default function ProfileScreen({ theme }: Props) {
           <Text style={[styles.reportButtonText, { color: c.accent }]}>
             {generatingReport ? "Creating report..." : "Create and share PDF"}
           </Text>
-        </TouchableOpacity>
+        </Button>
 
         {profile.updatedAt ? (
           <Text style={[styles.updatedText, { color: c.textMuted }]}>
@@ -334,135 +334,14 @@ function ToggleRow({ label, value, onToggle, c }: { label: string; value: boolea
   return (
     <View style={[styles.toggleRow, { borderBottomColor: c.divider }]}>
       <Text style={[styles.toggleLabel, { color: c.text }]}>{label}</Text>
-      <Switch value={value} onValueChange={onToggle} trackColor={{ false: c.switchTrackOff, true: c.accent }} thumbColor="#ffffff" />
+      <ToggleButton
+        isActive={value}
+        onPress={() => onToggle(!value)}
+        accessibilityLabel={label}
+        activeTrackColor={c.accent}
+        inactiveTrackColor={c.switchTrackOff}
+      />
     </View>
-  );
-}
-
-const MONTHS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
-
-function DateOfBirthPicker({
-  value,
-  onChange,
-  c,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  c: any;
-}) {
-  const [monthValue, dayValue, yearValue] = value.split("/");
-  const month = Number(monthValue) || 0;
-  const day = Number(dayValue) || 0;
-  const year = Number(yearValue) || 0;
-  const [openPart, setOpenPart] = useState<"month" | "day" | "year" | null>(null);
-
-  const currentYear = new Date().getFullYear();
-  const selectedYear = year || currentYear - 25;
-  const selectedMonth = month || 1;
-  const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
-  const years = Array.from({ length: 60 }, (_, index) => currentYear - 12 - index);
-
-  function savePart(part: "month" | "day" | "year", nextValue: number) {
-    const nextMonth = part === "month" ? nextValue : selectedMonth;
-    const nextYear = part === "year" ? nextValue : selectedYear;
-    const maxDay = new Date(nextYear, nextMonth, 0).getDate();
-    const nextDay = Math.min(part === "day" ? nextValue : day || 1, maxDay);
-    onChange(
-      `${String(nextMonth).padStart(2, "0")}/${String(nextDay).padStart(2, "0")}/${nextYear}`
-    );
-    setOpenPart(null);
-  }
-
-  const options =
-    openPart === "month"
-      ? MONTHS.map((label, index) => ({ label, value: index + 1 }))
-      : openPart === "day"
-      ? Array.from({ length: daysInMonth }, (_, index) => ({
-          label: String(index + 1),
-          value: index + 1,
-        }))
-      : years.map((item) => ({ label: String(item), value: item }));
-
-  return (
-    <View style={styles.fieldWrapper}>
-      <Text style={[styles.label, { color: c.textMuted }]}>Date of birth *</Text>
-      <View style={styles.dateRow}>
-        <DateBox
-          label="Month"
-          value={month ? MONTHS[month - 1] : "Month"}
-          onPress={() => setOpenPart("month")}
-          c={c}
-        />
-        <DateBox
-          label="Day"
-          value={day ? String(day) : "Day"}
-          onPress={() => setOpenPart("day")}
-          c={c}
-        />
-        <DateBox
-          label="Year"
-          value={year ? String(year) : "Year"}
-          onPress={() => setOpenPart("year")}
-          c={c}
-        />
-      </View>
-
-      <Modal
-        visible={openPart !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setOpenPart(null)}
-      >
-        <Pressable style={styles.modalOverlay} onPress={() => setOpenPart(null)}>
-          <Pressable
-            style={[styles.optionSheet, { backgroundColor: c.inputBg, borderColor: c.inputBorder }]}
-            onPress={() => undefined}
-          >
-            <Text style={[styles.optionTitle, { color: c.text }]}>
-              Select {openPart}
-            </Text>
-            <ScrollView style={styles.optionList}>
-              {options.map((option) => (
-                <Pressable
-                  key={`${openPart}-${option.value}`}
-                  style={[styles.option, { borderBottomColor: c.divider }]}
-                  onPress={() => savePart(openPart!, option.value)}
-                >
-                  <Text style={[styles.optionText, { color: c.text }]}>{option.label}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          </Pressable>
-        </Pressable>
-      </Modal>
-    </View>
-  );
-}
-
-function DateBox({
-  label,
-  value,
-  onPress,
-  c,
-}: {
-  label: string;
-  value: string;
-  onPress: () => void;
-  c: any;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`Choose birth ${label.toLowerCase()}`}
-      style={[styles.dateBox, { backgroundColor: c.inputBg, borderColor: c.inputBorder }]}
-      onPress={onPress}
-    >
-      <Text style={[styles.dateBoxValue, { color: c.text }]}>{value}</Text>
-      <Text style={[styles.dateBoxLabel, { color: c.textMuted }]}>{label}</Text>
-    </Pressable>
   );
 }
 
@@ -495,16 +374,6 @@ const styles = StyleSheet.create({
   sectionHeader: { fontSize: 11, fontWeight: "700", letterSpacing: 2, marginTop: 28, marginBottom: 12 },
   requiredNote: { fontSize: 10, lineHeight: 15, marginBottom: 12 },
   row: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
-  dateRow: { flexDirection: "row", gap: 8 },
-  dateBox: { flex: 1, minHeight: 58, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, justifyContent: "center" },
-  dateBoxValue: { fontSize: 15, fontWeight: "700" },
-  dateBoxLabel: { fontSize: 9, marginTop: 3, textTransform: "uppercase" },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "center", padding: 28 },
-  optionSheet: { maxHeight: "70%", borderWidth: 1, borderRadius: 10, padding: 14 },
-  optionTitle: { fontSize: 16, fontWeight: "800", textTransform: "capitalize", marginBottom: 8 },
-  optionList: { maxHeight: 360 },
-  option: { paddingVertical: 13, borderBottomWidth: 1 },
-  optionText: { fontSize: 15, textAlign: "center" },
   rowField: { flex: 1 },
   smallRowField: { flex: 0.65 },
   fieldWrapper: { marginBottom: 14 },

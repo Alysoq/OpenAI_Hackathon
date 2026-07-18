@@ -1,10 +1,10 @@
+import Button from "../components/Button";
 import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
   StyleSheet,
   SafeAreaView,
-  TouchableOpacity,
   ScrollView,
   Linking,
   Animated,
@@ -127,9 +127,9 @@ export default function EmergencyScreen({ theme, onClose }: Props) {
         {/* Header */}
         <View style={styles.header}>
           {onClose && (
-            <TouchableOpacity onPress={onClose} style={styles.backBtn}>
+            <Button onPress={onClose} style={styles.backBtn}>
               <Text style={[styles.backText, { color: c.textMuted }]}>← Back</Text>
-            </TouchableOpacity>
+            </Button>
           )}
           <Text style={[styles.screenTitle, { color: "#ff4444" }]}>EMERGENCY</Text>
         </View>
@@ -142,7 +142,7 @@ export default function EmergencyScreen({ theme, onClose }: Props) {
             </Text>
 
             <Animated.View style={{ transform: [{ scale: pulse }] }}>
-              <TouchableOpacity
+              <Button
                 style={styles.emergencyBtn}
                 onPress={handleEmergencyPress}
                 activeOpacity={0.85}
@@ -150,25 +150,25 @@ export default function EmergencyScreen({ theme, onClose }: Props) {
                 <Text style={styles.emergencyBtnIcon}>🚨</Text>
                 <Text style={styles.emergencyBtnText}>EMERGENCY</Text>
                 <Text style={styles.emergencyBtnSub}>Tap to activate</Text>
-              </TouchableOpacity>
+              </Button>
             </Animated.View>
 
             <View style={styles.quickActions}>
-              <TouchableOpacity
+              <Button
                 style={[styles.quickBtn, { backgroundColor: c.card, borderColor: c.cardBorder }]}
                 onPress={() => handleCall("911")}
               >
                 <Text style={styles.quickBtnIcon}>📞</Text>
                 <Text style={[styles.quickBtnText, { color: c.text }]}>Call 911</Text>
-              </TouchableOpacity>
+              </Button>
 
-              <TouchableOpacity
+              <Button
                 style={[styles.quickBtn, { backgroundColor: c.card, borderColor: c.cardBorder }]}
                 onPress={() => handleCall(NEAREST_HOSPITAL.phone)}
               >
                 <Text style={styles.quickBtnIcon}>🏥</Text>
                 <Text style={[styles.quickBtnText, { color: c.text }]}>Call Hospital</Text>
-              </TouchableOpacity>
+              </Button>
             </View>
           </View>
         )}
@@ -184,12 +184,12 @@ export default function EmergencyScreen({ theme, onClose }: Props) {
               <Text style={[styles.countdownSub, { color: c.textMuted }]}>
                 Notifying nearest hospital and emergency contacts
               </Text>
-              <TouchableOpacity
+              <Button
                 style={[styles.cancelBtn, { borderColor: c.cardBorder }]}
                 onPress={handleCancel}
               >
                 <Text style={[styles.cancelBtnText, { color: c.textMuted }]}>Cancel</Text>
-              </TouchableOpacity>
+              </Button>
             </View>
           </View>
         )}
@@ -245,21 +245,21 @@ export default function EmergencyScreen({ theme, onClose }: Props) {
               </View>
 
               <View style={styles.hospitalBtns}>
-                <TouchableOpacity
+                <Button
                   style={[styles.hospitalBtn, { backgroundColor: "#ff4444" }]}
                   onPress={() => handleCall(NEAREST_HOSPITAL.phone)}
                 >
                   <Text style={styles.hospitalBtnText}>📞 Call</Text>
-                </TouchableOpacity>
+                </Button>
 
-                <TouchableOpacity
+                <Button
                   style={[styles.hospitalBtn, { backgroundColor: c.cardBorder }]}
                   onPress={handleDirections}
                 >
                   <Text style={[styles.hospitalBtnText, { color: c.text }]}>🗺 Navigate</Text>
-                </TouchableOpacity>
+                </Button>
 
-                <TouchableOpacity
+                <Button
                   style={[
                     styles.hospitalBtn,
                     { backgroundColor: bedReserved ? "#14532d" : "#6c63ff" },
@@ -270,7 +270,7 @@ export default function EmergencyScreen({ theme, onClose }: Props) {
                   <Text style={styles.hospitalBtnText}>
                     {bedReserved ? "✓ Reserved" : "Reserve Bed"}
                   </Text>
-                </TouchableOpacity>
+                </Button>
               </View>
             </View>
 
@@ -285,12 +285,12 @@ export default function EmergencyScreen({ theme, onClose }: Props) {
                   <Text style={[styles.ambulanceIdleText, { color: c.text }]}>
                     Dispatch an ambulance to your location
                   </Text>
-                  <TouchableOpacity
+                  <Button
                     style={styles.dispatchBtn}
                     onPress={handleCallAmbulance}
                   >
                     <Text style={styles.dispatchBtnText}>🚑 Dispatch Ambulance</Text>
-                  </TouchableOpacity>
+                  </Button>
                 </View>
               ) : (
                 <View>
@@ -329,25 +329,25 @@ export default function EmergencyScreen({ theme, onClose }: Props) {
                     </View>
                   </View>
 
-                  <TouchableOpacity
+                  <Button
                     style={[styles.callAmbBtn, { backgroundColor: "#ff4444" }]}
                     onPress={() => handleCall(AMBULANCE.phone)}
                   >
                     <Text style={styles.callAmbBtnText}>📞 Call Paramedic</Text>
-                  </TouchableOpacity>
+                  </Button>
                 </View>
               )}
             </View>
 
             {/* Deactivate */}
-            <TouchableOpacity
+            <Button
               style={[styles.deactivateBtn, { borderColor: c.cardBorder }]}
               onPress={handleCancel}
             >
               <Text style={[styles.deactivateBtnText, { color: c.textMuted }]}>
                 Deactivate Emergency
               </Text>
-            </TouchableOpacity>
+            </Button>
           </View>
         )}
 

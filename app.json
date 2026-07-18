@@ -6,24 +6,21 @@
     "orientation": "portrait",
     "icon": "./assets/materna-app-icon.png",
     "userInterfaceStyle": "automatic",
-
     "ios": {
       "icon": "./assets/materna-app-icon.png",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.materna"
     },
-
     "android": {
       "icon": "./assets/materna-app-icon.png"
     },
-
     "plugins": [
-      "expo-asset"
+      "expo-asset",
+      "@react-native-community/datetimepicker"
     ],
-
     "web": {
-      "bundler": "metro",
+      "bundler": "metro"
     },
-
     "experiments": {
       "baseUrl": "/Materna"
     }

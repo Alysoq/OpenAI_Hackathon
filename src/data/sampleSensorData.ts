@@ -1,6 +1,31 @@
 export type RiskLevel = "Green" | "Yellow" | "Red";
-
-export type SensorData = typeof greenScenario;
+export type SensorData = {
+  bracelet: {
+    connected: boolean;
+    battery: number;
+    lastSynced: string;
+  };
+  mother: {
+    name: string;
+    pregnancyWeek: number;
+  };
+  vitals: Record<string, {
+    title: string;
+    value: string;
+    unit: string;
+    status: string;
+  }>;
+  risk: {
+    level: RiskLevel;
+    message: string;
+    confidence: string;
+    color: string;
+    headline: string;
+    description: string;
+    pattern: string | null;
+    action: string;
+  };
+};
 
 const greenScenario = {
   bracelet: {

@@ -1,14 +1,13 @@
-import React, { useEffect, useRef, useState } from "react";
+import Button from "../components/Button";
+import React, { useState } from "react";
 import {
   SafeAreaView,
   ScrollView,
   View,
   Text,
-  Pressable,
   StyleSheet,
-  Animated,
-  TouchableOpacity,
-} from "react-native";
+  } from "react-native";
+import AnimatedWave from "../components/AnimatedWave";
 import { scenarios } from "../data/sampleSensorData";
 import type { RiskLevel } from "../data/sampleSensorData";
 import { Sparkles, Sun, Moon } from "lucide-react-native";
@@ -20,41 +19,6 @@ type HomeScreenProps = {
   activeScenario: RiskLevel;
   onScenarioChange: (level: RiskLevel) => void;
 };
-
-function WaveBar({ delay, color }: { delay: number; color: string }) {
-  const anim = useRef(new Animated.Value(0.3)).current;
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.delay(delay),
-        Animated.timing(anim, { toValue: 1, duration: 400, useNativeDriver: true }),
-        Animated.timing(anim, { toValue: 0.3, duration: 400, useNativeDriver: true }),
-      ])
-    ).start();
-  }, []);
-  return (
-    <Animated.View
-      style={{
-        width: 3,
-        height: 14,
-        borderRadius: 2,
-        backgroundColor: color,
-        marginHorizontal: 1.5,
-        opacity: anim,
-        transform: [{ scaleY: anim }],
-      }}
-    />
-  );
-}
-
-function AnimatedWave({ color }: { color: string }) {
-  const delays = [0, 80, 160, 240, 320, 240, 160, 80, 0, 80, 160, 240];
-  return (
-    <View style={{ flexDirection: "row", alignItems: "center", height: 20, marginTop: 10 }}>
-      {delays.map((d, i) => <WaveBar key={i} delay={d} color={color} />)}
-    </View>
-  );
-}
 
 function VitalCard({
   title, value, unit, theme, status,
@@ -139,7 +103,7 @@ export default function HomeScreen({
                 Bracelet connected · {data.bracelet.lastSynced}
               </Text>
             </View>
-            <Pressable
+            <Button
               onPress={toggleTheme}
               style={[styles.themeButton, { backgroundColor: colors.card, borderColor: colors.border }]}
             >
@@ -147,7 +111,7 @@ export default function HomeScreen({
               <Text style={[styles.themeButtonText, { color: colors.text }]}>
                 {isDark ? "Light" : "Dark"}
               </Text>
-            </Pressable>
+            </Button>
           </View>
 
           {/* Brand row */}
@@ -162,7 +126,7 @@ export default function HomeScreen({
           {/* Scenario dot switcher — no text, just dots */}
           <View style={styles.dotSwitcher}>
             {(["Green", "Yellow", "Red"] as RiskLevel[]).map((level) => (
-              <TouchableOpacity
+              <Button
                 key={level}
                 onPress={() => onScenarioChange(level)}
                 style={[
@@ -214,7 +178,7 @@ export default function HomeScreen({
           {/* Vitals header + Ask Materna on same row */}
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>What the band is sensing</Text>
-            <Pressable
+            <Button
               onPress={onAskMaterna}
               style={[styles.askButtonInline, {
                 backgroundColor: isDark ? "#19231E" : "#DCFCE7",
@@ -223,7 +187,7 @@ export default function HomeScreen({
             >
               <Sparkles size={13} color={riskColor} />
               <Text style={[styles.askButtonInlineText, { color: colors.text }]}>Ask Materna</Text>
-            </Pressable>
+            </Button>
           </View>
 
           {/* Vitals 2-column grid */}

@@ -1,7 +1,8 @@
+import Button from "../components/Button";
 import React, { useState } from "react";
 import {
   View, Text, StyleSheet, SafeAreaView,
-  TextInput, Pressable, KeyboardAvoidingView, Platform, ScrollView
+  TextInput, KeyboardAvoidingView, Platform, ScrollView
 } from "react-native";
 import { ArrowLeft, Stethoscope } from "lucide-react-native";
 
@@ -78,10 +79,10 @@ export default function DoctorLoginScreen({ theme, onLogin, onBack }: Props) {
         <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
           <View style={s.wrap}>
 
-            <Pressable onPress={onBack} style={s.backBtn}>
+            <Button onPress={onBack} style={s.backBtn}>
               <ArrowLeft size={22} color={c.muted} />
               <Text style={[s.backTxt, { color: c.muted }]}>Change role</Text>
-            </Pressable>
+            </Button>
 
             {/* Icon */}
             <View style={[s.iconCircle, { backgroundColor: "#19153a", borderColor: c.purple }]}>
@@ -117,7 +118,7 @@ export default function DoctorLoginScreen({ theme, onLogin, onBack }: Props) {
 
               {error ? <Text style={s.error}>{error}</Text> : null}
 
-              <Pressable
+              <Button
                 style={[s.btn, { backgroundColor: loading ? "#4a43cc" : c.purple }]}
                 onPress={handleLogin}
                 disabled={loading}
@@ -125,7 +126,7 @@ export default function DoctorLoginScreen({ theme, onLogin, onBack }: Props) {
                 <Text style={s.btnText}>
                   {loading ? "Signing in..." : "Access Dashboard →"}
                 </Text>
-              </Pressable>
+              </Button>
             </View>
 
             {/* Demo hint */}
